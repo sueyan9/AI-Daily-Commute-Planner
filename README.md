@@ -78,21 +78,21 @@ This establishes the foundation for integrating real-time services.
 
 The following features are currently being implemented.
 
-## 📍 Reverse Geocoding
+### ✅ Reverse Geocoding
 
-Convert GPS coordinates into a human-readable location.
+Converts GPS coordinates into a human-readable address using Google Geocoding API.
 
-Example:
+---
 
-```
-Latitude:
--36.8208
+### ✅ Driving Route Estimate
 
-↓
+Retrieves driving distance and estimated duration using Google Routes API.
 
-Albany, Auckland
-```
+---
 
+### ✅ Current Weather Data
+
+Retrieves current weather using Open-Meteo without requiring an API key.
 ---
 
 ## 🚗 Google Maps Directions API
@@ -153,7 +153,7 @@ Planner Service
 │
 ├───────────────┐
 │ Google Maps │
-│ OpenWeather │
+│ Open-Meteo  │
 │ AI Models │
 └───────────────┘
 │
@@ -183,12 +183,14 @@ Future versions will evolve this architecture into an Agent-based workflow where
 ## Current APIs
 
 - Browser Geolocation API
+- Google Maps Geocoding API
+- Google Routes API
+- Open-Meteo Weather API
 
 ## Planned APIs
 
-- Google Maps Geocoding API
-- Google Maps Directions API
-- OpenWeather API
+- Google Transit / public transport route analysis
+- AI model API
 
 ## AI Models
 
@@ -204,22 +206,21 @@ Future versions will evolve this architecture into an Agent-based workflow where
 
 - [x] Project architecture
 - [x] Responsive UI
-- [x] Hero landing page
-- [x] Commute planning interface
-- [x] Recommendation card
 - [x] FastAPI backend
 - [x] REST API
 - [x] Frontend ↔ Backend connection
 - [x] Browser Geolocation
+- [x] Reverse Geocoding
+- [x] Google Routes API driving estimate
+- [x] Current weather data with Open-Meteo
 
 ---
 
 ## 🚧 Current Sprint
 
-- [ ] Reverse Geocoding
-- [ ] Google Directions API
-- [ ] Weather API
-
+- [ ] Public transport comparison
+- [ ] AI Recommendation
+- [ ] Traffic and weather explanation
 ---
 
 ## 🔜 Next Sprint

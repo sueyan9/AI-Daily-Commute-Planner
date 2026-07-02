@@ -2,55 +2,102 @@
 
 > **An AI-powered daily commute assistant that helps you decide when to leave and how to travel every morning.**
 
-Instead of checking Google Maps, the weather, and public transport separately, LeaveWise automatically combines all the information and provides one simple recommendation:
+Instead of switching between Google Maps, weather forecasts, and public transport apps, LeaveWise combines multiple real-time data sources and provides one simple recommendation.
 
 > **"Leave home at 7:38 AM and take the NX1 Express today."**
 
 ---
 
-## ✨ Why LeaveWise?
+# ✨ Why LeaveWise?
 
-Most navigation apps tell you **how to get somewhere**.
+Most navigation apps answer:
 
-LeaveWise helps you decide:
+> **"How do I get there?"**
 
-- 🚗 Should I drive today?
-- 🚌 Should I take public transport?
-- ⏰ What time should I leave?
-- 🌧 Will the weather affect my commute?
-- 🚧 Is today's congestion caused by rush hour or an accident?
+LeaveWise answers:
 
-The goal is to reduce the amount of information users need to process every morning and provide a clear AI-powered recommendation.
+> **"What is the smartest way to commute today?"**
 
----
+Every morning, the application automatically:
 
-# 📱 Features
+- 📍 Detects your current location
+- 🌤 Checks the latest weather
+- 🚦 Analyses live traffic conditions
+- 🚌 Compares driving and public transport
+- 🤖 Explains *why* it recommends a particular option
+- ⏰ Suggests the best departure time
 
-### 📍 Automatic Location Detection
+The goal is not to replace Google Maps.
 
-The application automatically detects the user's current location using the browser's Geolocation API.
-
-No need to manually enter your starting point every day.
-
----
-
-### 🎯 Destination Selection
-
-Choose your destination from:
-
-- Office
-- Home
-- Saved locations
-
-Future versions will automatically suggest destinations based on your daily routine.
+The goal is to help users make better commuting decisions.
 
 ---
 
-### 🚦 Live Traffic Analysis
+# 📱 Current Features
 
-Retrieve live traffic information from Google Maps.
+### ✅ Browser Geolocation
 
-The application compares:
+Automatically retrieves the user's current location using the browser Geolocation API.
+
+No need to manually enter your starting location every day.
+
+---
+
+### ✅ Responsive Web Interface
+
+A modern mobile-first interface built with Next.js and Tailwind CSS.
+
+Designed to feel like a consumer AI application rather than a traditional dashboard.
+
+---
+
+### ✅ FastAPI Backend
+
+RESTful backend service built with FastAPI.
+
+Current architecture separates:
+
+- API layer
+- Planner service
+- Agent layer
+- External tools
+
+to make future AI integration easier.
+
+---
+
+### ✅ Frontend ↔ Backend Communication
+
+The frontend communicates with the FastAPI backend using REST APIs.
+
+This establishes the foundation for integrating real-time services.
+
+---
+
+# 🚧 In Development
+
+The following features are currently being implemented.
+
+## 📍 Reverse Geocoding
+
+Convert GPS coordinates into a human-readable location.
+
+Example:
+
+```
+Latitude:
+-36.8208
+
+↓
+
+Albany, Auckland
+```
+
+---
+
+## 🚗 Google Maps Directions API
+
+Retrieve live travel information for:
 
 - Driving
 - Public Transport
@@ -59,9 +106,9 @@ The application compares:
 
 ---
 
-### 🌤 Weather Analysis
+## 🌤 Weather Analysis
 
-Retrieve current weather conditions including:
+Retrieve:
 
 - Temperature
 - Rain forecast
@@ -70,15 +117,15 @@ Retrieve current weather conditions including:
 
 ---
 
-### 🤖 AI Recommendation
+## 🤖 AI Recommendation Engine
 
-Instead of displaying raw traffic data, the AI explains:
+Instead of displaying raw traffic information, the AI explains:
 
-- Why traffic is heavy
-- Whether congestion is caused by an accident or peak-hour traffic
+- Why congestion exists
+- Whether delays are caused by accidents or rush hour
 - Whether weather affects today's commute
 - Which transport option is recommended
-- The ideal departure time
+- Why that recommendation was made
 
 Example:
 
@@ -92,26 +139,30 @@ Example:
 
 ---
 
-# 🏗 Architecture
+# 🏗 System Architecture
 
 ```
+
 Next.js Frontend
-        │
-        ▼
+│
+▼
 FastAPI Backend
-        │
-        ▼
+│
+▼
 Planner Service
-        │
- ┌──────────────┐
- │ Google Maps  │
- │ OpenWeather  │
- │ AI Model     │
- └──────────────┘
-        │
-        ▼
- AI Recommendation
+│
+├───────────────┐
+│ Google Maps │
+│ OpenWeather │
+│ AI Models │
+└───────────────┘
+│
+▼
+AI Recommendation
+
 ```
+
+Future versions will evolve this architecture into an Agent-based workflow where each external service is encapsulated as an independent Tool.
 
 ---
 
@@ -119,7 +170,8 @@ Planner Service
 
 ## Frontend
 
-- Next.js
+- Next.js 15
+- React
 - TypeScript
 - Tailwind CSS
 
@@ -128,53 +180,73 @@ Planner Service
 - FastAPI
 - Python
 
-## APIs
+## Current APIs
 
+- Browser Geolocation API
+
+## Planned APIs
+
+- Google Maps Geocoding API
 - Google Maps Directions API
-- Google Geolocation API
 - OpenWeather API
 
-## AI
+## AI Models
 
 - OpenAI GPT
 - DeepSeek
-- (Future) Multi-Agent Architecture
+- (Future) Model Routing
 
 ---
 
-# 🚀 Future Roadmap
+# 📅 Development Progress
 
-## Phase 1 (Current)
+## ✅ Completed
 
-- Responsive Web UI
-- Current location detection
-- Destination input
-- Google Maps integration
-- Weather integration
-- AI commute recommendation
+- [x] Project architecture
+- [x] Responsive UI
+- [x] Hero landing page
+- [x] Commute planning interface
+- [x] Recommendation card
+- [x] FastAPI backend
+- [x] REST API
+- [x] Frontend ↔ Backend connection
+- [x] Browser Geolocation
 
 ---
 
-## Phase 2
+## 🚧 Current Sprint
+
+- [ ] Reverse Geocoding
+- [ ] Google Directions API
+- [ ] Weather API
+
+---
+
+## 🔜 Next Sprint
+
+- [ ] AI Recommendation
+- [ ] Traffic explanation
+- [ ] Public transport comparison
+- [ ] Departure time optimisation
+
+---
+
+## 🔮 Future
 
 - Google Calendar integration
-- Daily routine detection
-- Saved locations
+- Saved destinations
+- Daily commuting routine
 - Push notifications
-
----
-
-## Phase 3
-
 - Multi-Agent workflow
 - Model routing
-- Public transport delay analysis
-- Personalized commuting preferences
+- User preference learning
 
 ---
 
 # 💡 Project Goal
 
-LeaveWise is designed as an AI-first daily commuting assistant rather than another navigation application.
+LeaveWise is designed as an AI-first commuting assistant rather than another navigation application.
 
-The project demonstrates how Large Language Models can combine multiple real-time data sources and generate human-friendly recommendations that help users make better daily commuting decisions.
+Instead of simply showing maps or routes, LeaveWise combines multiple real-time data sources and uses AI to explain the best commuting decision in a clear, human-friendly way.
+
+The project also serves as a practical exploration of Agentic AI architecture, demonstrating how modern AI applications can orchestrate external tools, analyse live data, and generate contextual recommendations.

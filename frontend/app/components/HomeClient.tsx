@@ -51,6 +51,23 @@ export default function HomeClient() {
                     </p>
 
                     {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+                        {result?.driving_route && (
+                            <div className="mt-5 rounded-2xl bg-white/80 p-4">
+
+                                <p className="text-sm font-medium text-slate-500">
+                                    🚗 Driving
+                                </p>
+
+                                <p className="mt-2 text-xl font-semibold">
+                                    {result.driving_route.duration}
+                                </p>
+
+                                <p className="text-sm text-slate-500">
+                                    {(result.driving_route.distance_meters / 1000).toFixed(1)} km
+                                </p>
+
+                            </div>
+                        )}
                 </div>
 
                 <Hero />

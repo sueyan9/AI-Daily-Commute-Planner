@@ -18,8 +18,13 @@ async def plan_commute(request: CommuteRequest):
         request.latitude,
         request.longitude,
     )
-
+    driving_route = google.get_driving_route(
+        origin=address,
+        destination=request.destination,
+    )
+    print("Driving route result:", driving_route)
     return {
         "current_location": address,
         "destination": request.destination,
+        "driving_route": driving_route,
     }

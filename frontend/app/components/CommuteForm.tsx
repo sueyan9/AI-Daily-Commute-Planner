@@ -36,7 +36,7 @@ export default function CommuteForm({ onPlan }: Props) {
                     onClick={onPlan}
                     className="mt-2 w-full rounded-2xl bg-indigo-500 px-4 py-4 font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-600"
                 >
-                    Plan My Commute
+                    Refresh Analysis
                 </button>
             </div>
         </section>

@@ -5,7 +5,7 @@ import CommuteForm from "./CommuteForm";
 import RecommendationCard from "./RecommendationCard";
 import InfoCards from "./InfoCards";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function HomeClient() {
     const { location, error } = useGeolocation();
@@ -33,14 +33,24 @@ export default function HomeClient() {
         console.log(data);
         setResult(data);
     };
+    useEffect(() => {
+        if (!location) return;
+
+        handlePlanCommute();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location]);
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-sky-100 via-indigo-100 to-orange-100 px-4 py-6 text-slate-900">
             <section className="mx-auto flex max-w-6xl flex-col gap-6">
-                <div className="rounded-2xl bg-white/70 p-4 text-sm">
-                    <p>Latitude: {location?.latitude ?? "Loading..."}</p>
-                    <p>Longitude: {location?.longitude ?? "Loading..."}</p>
-                    {error && <p className="text-red-500">{error}</p>}
+                <div className="rounded-[24px] bg-white/70 p-5 text-sm shadow-lg backdrop-blur">
+                    <p className="text-sm font-medium text-slate-500">📍 Current Location</p>
+
+                    <p className="mt-2 text-lg font-semibold text-slate-900">
+                        {result?.current_location ?? "Detecting your location..."}
+                    </p>
+
+                    {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
                 </div>
 
                 <Hero />
@@ -52,13 +62,7 @@ export default function HomeClient() {
 
                 <InfoCards />
             </section>
-            {result && (
-                <div className="rounded-2xl bg-white/70 p-4 text-sm">
-                    <p className="font-semibold">Backend Result</p>
-                    <p>Current location: {result.current_location}</p>
-                    <p>Destination: {result.destination}</p>
-                </div>
-            )}
+
         </main>
     );
 }

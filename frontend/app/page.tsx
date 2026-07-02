@@ -1,65 +1,93 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      <main className="min-h-screen bg-gradient-to-br from-sky-100 via-indigo-100 to-orange-100 px-4 py-6 text-slate-900">
+        <section className="mx-auto flex max-w-6xl flex-col gap-6">
+          <header className="rounded-[28px] bg-white/60 p-6 shadow-xl backdrop-blur">
+            <p className="text-sm text-slate-500">Good morning 👋</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">
+              AI Daily Commute Planner
+            </h1>
+            <p className="mt-3 text-slate-600">
+              Plan the best way to leave home based on traffic, weather and public transport.
+            </p>
+          </header>
+
+          <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+            <section className="rounded-[28px] bg-white/65 p-5 shadow-xl backdrop-blur">
+              <h2 className="text-xl font-semibold">Plan your commute</h2>
+
+              <div className="mt-5 space-y-4">
+                <input className="w-full rounded-2xl border border-white/70 bg-white/70 px-4 py-3 outline-none" placeholder="From: Auckland CBD" />
+                <input className="w-full rounded-2xl border border-white/70 bg-white/70 px-4 py-3 outline-none" placeholder="To: Albany" />
+                <input className="w-full rounded-2xl border border-white/70 bg-white/70 px-4 py-3 outline-none" placeholder="Leave time: 5:30 PM" />
+                <select className="w-full rounded-2xl border border-white/70 bg-white/70 px-4 py-3 outline-none">
+                  <option>Fewer transfers</option>
+                  <option>Fastest route</option>
+                  <option>Less walking</option>
+                </select>
+
+                <button className="w-full rounded-2xl bg-indigo-500 px-4 py-3 font-semibold text-white shadow-lg">
+                  Plan My Commute
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[28px] bg-white/65 p-6 shadow-xl backdrop-blur">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-indigo-500">Recommended route</p>
+                  <h2 className="mt-1 text-3xl font-bold">NX1 Express</h2>
+                  <p className="mt-1 text-slate-500">Britomart → Albany Station</p>
+                </div>
+                <span className="rounded-full bg-indigo-100 px-4 py-2 text-sm font-semibold text-indigo-600">
+                Best choice
+              </span>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl bg-white/70 p-4">
+                  <p className="text-sm text-slate-500">Travel time</p>
+                  <p className="mt-2 text-2xl font-bold text-indigo-600">55 min</p>
+                </div>
+                <div className="rounded-2xl bg-white/70 p-4">
+                  <p className="text-sm text-slate-500">Arrive at</p>
+                  <p className="mt-2 text-2xl font-bold text-indigo-600">6:25 PM</p>
+                </div>
+                <div className="rounded-2xl bg-white/70 p-4">
+                  <p className="text-sm text-slate-500">Transfers</p>
+                  <p className="mt-2 text-2xl font-bold text-indigo-600">0</p>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl bg-emerald-50/80 p-4">
+                <p className="font-semibold text-emerald-700">Recommendation reason</p>
+                <p className="mt-2 text-sm text-slate-600">
+                  SH1 northbound traffic is heavy. NX1 is more reliable than driving and avoids transfers.
+                </p>
+              </div>
+            </section>
+          </div>
+
+          <section className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-[24px] bg-white/65 p-5 shadow-lg backdrop-blur">
+              <p className="text-sm text-slate-500">Traffic</p>
+              <h3 className="mt-2 text-xl font-bold">Heavy congestion</h3>
+              <p className="mt-2 text-sm text-slate-600">Estimated delay: 23 min</p>
+            </div>
+
+            <div className="rounded-[24px] bg-white/65 p-5 shadow-lg backdrop-blur">
+              <p className="text-sm text-slate-500">Weather</p>
+              <h3 className="mt-2 text-xl font-bold">21°C · Light rain</h3>
+              <p className="mt-2 text-sm text-slate-600">Bring an umbrella.</p>
+            </div>
+
+            <div className="rounded-[24px] bg-white/65 p-5 shadow-lg backdrop-blur">
+              <p className="text-sm text-slate-500">Final advice</p>
+              <h3 className="mt-2 text-xl font-bold">Leave at 5:25 PM</h3>
+              <p className="mt-2 text-sm text-slate-600">This should keep you on time.</p>
+            </div>
+          </section>
+        </section>
       </main>
-    </div>
   );
 }

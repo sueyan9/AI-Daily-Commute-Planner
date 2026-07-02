@@ -1,19 +1,28 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from api.commute import router as commute_router
 
-class PlanRequest(BaseModel):
-    origin: str
-    destination: str
-    leave_time: str
-    preference: str
+app = FastAPI(
+    title="LeaveWise API",
+    version="0.1.0"
+)
 
-@app.post("/plan")
-def plan_route(req: PlanRequest):
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(commute_router)
+
+
+@app.get("/")
+def root():
     return {
-        "recommendation": "Take NX1 from Britomart to Albany Station.",
-        "traffic": "Heavy traffic on Northern Motorway.",
-        "reason": "Bus is more reliable than driving during peak time.",
-        "eta": "Approx. 55 minutes"
+        "message": "LeaveWise API is running."
     }

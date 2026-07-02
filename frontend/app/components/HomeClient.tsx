@@ -59,13 +59,26 @@ export default function HomeClient() {
                                 </p>
 
                                 <p className="mt-2 text-xl font-semibold">
-                                    {result.driving_route.duration}
+                                    {Math.round(parseInt(result.driving_route.duration) / 60)} min
                                 </p>
 
                                 <p className="text-sm text-slate-500">
                                     {(result.driving_route.distance_meters / 1000).toFixed(1)} km
                                 </p>
 
+                                {result?.weather && (
+                                    <div className="mt-5 rounded-2xl bg-white/80 p-4">
+                                        <p className="text-sm font-medium text-slate-500">🌤 Weather</p>
+
+                                        <p className="mt-2 text-xl font-semibold text-slate-900">
+                                            {result.weather.temperature}°C
+                                        </p>
+
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Feels like {result.weather.feels_like}°C · Wind {result.weather.wind_speed} km/h
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         )}
                 </div>

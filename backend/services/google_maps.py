@@ -1,30 +1,30 @@
-import os
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
-
-API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+from core.config import settings
 
 
 class GoogleMapsService:
 
     BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
-    def reverse_geocode(self, lat: float, lng: float):
+    def reverse_geocode(self, latitude: float, longitude: float):
 
         params = {
-            "latlng": f"{lat},{lng}",
-            "key": API_KEY,
+            "latlng": f"{latitude},{longitude}",
+            "key": settings.GOOGLE_MAPS_API_KEY,
         }
 
-        response = requests.get(self.BASE_URL, params=params)
+        response = requests.get(
+            self.BASE_URL,
+            params=params,
+            timeout=10,
+        )
 
         response.raise_for_status()
 
         data = response.json()
 
-        if not data["results"]:
+        if data["status"] != "OK":
             return None
 
         return data["results"][0]["formatted_address"]

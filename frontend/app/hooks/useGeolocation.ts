@@ -16,7 +16,13 @@ export function useGeolocation() {
                 setLocation(position.coords);
             },
             (err) => {
+                console.error("Geolocation error:", err);
                 setError(err.message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0,
             }
         );
     }, []);

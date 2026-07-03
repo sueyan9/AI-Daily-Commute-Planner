@@ -62,8 +62,8 @@ export default function CommuteForm({
                         onChange={(event) => onPreferenceChange(event.target.value)}
                         className="mt-3 h-14 w-full rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] px-4 text-[15px] font-medium text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
                     >
-                        <option>Fewer transfers</option>
                         <option>Fastest route</option>
+                        <option>Fewer transfers</option>
                         <option>Less walking</option>
                     </select>
                 </label>

@@ -133,6 +133,7 @@ class PlannerService:
             "leave_time": leave_time,
             "arrival_time": self._format_time(arrival_time),
             "travel_time_minutes": drive_minutes,
+            "traffic": traffic,
             "headline": headline,
             "reason": reason,
             "summary": summary,

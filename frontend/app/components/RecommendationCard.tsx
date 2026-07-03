@@ -30,6 +30,12 @@ type CommutePlan = {
         leave_time: string | null;
         arrival_time: string | null;
         travel_time_minutes: number | null;
+        traffic?: {
+            level: string;
+            importance: "low" | "medium" | "high";
+            message: string;
+            tag: string;
+        };
         headline: string;
         reason: string;
         summary: string;
@@ -75,11 +81,16 @@ export default function RecommendationCard({
     const factors = decision?.decision_factors ?? getFallbackFactors(result);
     const comparison = decision?.comparison;
     const leaveTime =
-        decision?.leave_time ?? getFallbackLeaveTime(arrivalTime, result?.driving_route?.duration) ?? "--";
-    const arriveTime = decision?.arrival_time ?? formatTime(arrivalTime);
+        decision?.leave_time ??
+        getFallbackLeaveTime(arrivalTime, result?.driving_route?.duration) ??
+        getCurrentTimeDisplay();
+    const arriveTime = decision?.arrival_time ?? formatTime(arrivalTime) ?? "--";
     const driveMinutes =
         comparison?.driving.travel_time_minutes ?? getDriveMinutes(result?.driving_route?.duration);
     const recommendedMode = decision?.recommended_mode ?? comparison?.recommended_mode ?? "driving";
+    const trafficStatus =
+        decision?.traffic?.tag ??
+        getTrafficFallback(result?.driving_route?.duration, result?.driving_route?.static_duration);
     const transitStatus = comparison?.transit.available
         ? undefined
         : `${comparison?.transit.status ?? "Transit routing is not connected yet."} Preference: ${preference}.`;
@@ -142,6 +153,11 @@ export default function RecommendationCard({
                                 icon={<ClockIcon />}
                                 label="Travel time"
                                 value={driveMinutes ? `${driveMinutes} min` : "Pending"}
+                            />
+                            <KeyValue
+                                icon={<TrafficIcon />}
+                                label="Traffic"
+                                value={trafficStatus}
                             />
                             <KeyValue
                                 icon={<WeatherIcon />}
@@ -330,6 +346,7 @@ function ReasonColumn({
 
 function getFactorIcon(type: string) {
     switch (type.toLowerCase()) {
+        case "traffic":
         case "route":
             return <RouteIcon />;
         case "weather":
@@ -376,7 +393,11 @@ function getFallbackLeaveTime(
     );
 }
 
-function formatTime(value: string): string {
+function formatTime(value: string): string | null {
+    if (!value) {
+        return null;
+    }
+
     const [hours, minutes] = value.split(":").map(Number);
     if (Number.isNaN(hours) || Number.isNaN(minutes)) {
         return value;
@@ -385,6 +406,41 @@ function formatTime(value: string): string {
     const period = hours >= 12 ? "PM" : "AM";
     const normalizedHours = hours % 12 || 12;
     return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function getCurrentTimeDisplay(): string {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const period = hours >= 12 ? "PM" : "AM";
+    const normalizedHours = hours % 12 || 12;
+
+    return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function getTrafficFallback(
+    duration: string | undefined,
+    staticDuration: string | null | undefined
+): string {
+    const liveMinutes = getDriveMinutes(duration);
+    const staticMinutes = getDriveMinutes(staticDuration ?? undefined);
+
+    if (!liveMinutes || !staticMinutes || staticMinutes <= 0) {
+        return "Live traffic included";
+    }
+
+    const deltaMinutes = liveMinutes - staticMinutes;
+    const deltaRatio = deltaMinutes / staticMinutes;
+
+    if (deltaMinutes >= 10 || deltaRatio >= 0.35) {
+        return "Heavy traffic";
+    }
+
+    if (deltaMinutes >= 5 || deltaRatio >= 0.15) {
+        return "Moderate traffic";
+    }
+
+    return "Normal traffic";
 }
 
 function getTimeParts(value: string) {
@@ -508,6 +564,19 @@ function WeatherIcon() {
             <path d="M16.1 16.1l1.6 1.6" />
             <path d="M17.7 6.3l-1.6 1.6" />
             <path d="M7.9 16.1l-1.6 1.6" />
+        </SvgShell>
+    );
+}
+
+function TrafficIcon() {
+    return (
+        <SvgShell>
+            <path d="M4 16h16" />
+            <path d="M7 12h10" />
+            <path d="M10 8h4" />
+            <circle cx="7" cy="16.5" r="1.2" />
+            <circle cx="12" cy="12.5" r="1.2" />
+            <circle cx="17" cy="16.5" r="1.2" />
         </SvgShell>
     );
 }

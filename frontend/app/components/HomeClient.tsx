@@ -67,8 +67,8 @@ export default function HomeClient() {
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [destination, setDestination] = useState("Auckland CBD");
-    const [arrivalTime, setArrivalTime] = useState("18:25");
-    const [preference, setPreference] = useState("Fewer transfers");
+    const [arrivalTime, setArrivalTime] = useState("");
+    const [preference, setPreference] = useState("Fastest route");
 
     const handlePlanCommute = async () => {
         if (!location) {
@@ -89,7 +89,7 @@ export default function HomeClient() {
                     latitude: location.latitude,
                     longitude: location.longitude,
                     destination,
-                    arrival_time: arrivalTime,
+                    arrival_time: arrivalTime || null,
                     preference,
                 }),
             });

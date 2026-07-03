@@ -3,7 +3,7 @@
 import CommuteForm from "./CommuteForm";
 import RecommendationCard from "./RecommendationCard";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type CommutePlan = {
     current_location: string | null;
@@ -130,17 +130,6 @@ export default function HomeClient() {
             setIsLoading(false);
         }
     };
-
-    useEffect(() => {
-        if (!location) return;
-
-        const timeoutId = window.setTimeout(() => {
-            void handlePlanCommute();
-        }, 0);
-
-        return () => window.clearTimeout(timeoutId);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location]);
 
     return (
         <main className="min-h-screen bg-[var(--background)] px-4 py-6 text-[var(--foreground)] md:px-6 md:py-8">

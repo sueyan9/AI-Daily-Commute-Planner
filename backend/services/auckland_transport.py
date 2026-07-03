@@ -51,8 +51,10 @@ class AucklandTransportService:
     TIMEZONE = ZoneInfo("Pacific/Auckland")
     MAX_WALKING_DISTANCE_METERS = 800
     MAX_STOPS_PER_SIDE = 8
+    REALTIME_CACHE_TTL_SECONDS = 30
     _dataset_cache: dict | None = None
     _dataset_cache_mtime: float | None = None
+    _realtime_cache: dict[str, dict] = {}
 
     def get_transit_option(
         self,
@@ -116,8 +118,14 @@ class AucklandTransportService:
                 "status": "No active Auckland Transport services were found for today.",
             }
 
-        trip_updates = self._fetch_trip_updates()
-        alerts = self._fetch_service_alerts()
+        trip_updates = self._get_cached_realtime_feed(
+            cache_key="trip_updates",
+            loader=self._fetch_trip_updates,
+        )
+        alerts = self._get_cached_realtime_feed(
+            cache_key="service_alerts",
+            loader=self._fetch_service_alerts,
+        )
 
         candidates = self._build_candidates(
             dataset=dataset,
@@ -592,6 +600,20 @@ class AucklandTransportService:
             )
 
         return alerts
+
+    def _get_cached_realtime_feed(self, *, cache_key: str, loader):
+        now = datetime.now(self.TIMEZONE)
+        cached = self._realtime_cache.get(cache_key)
+
+        if cached and now < cached["expires_at"]:
+            return cached["value"]
+
+        value = loader()
+        self._realtime_cache[cache_key] = {
+            "value": value,
+            "expires_at": now + timedelta(seconds=self.REALTIME_CACHE_TTL_SECONDS),
+        }
+        return value
 
     def _match_alerts(
         self,

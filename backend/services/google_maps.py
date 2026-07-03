@@ -4,9 +4,9 @@ from core.config import settings
 
 
 class GoogleMapsService:
-
     BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
     ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
+
     def reverse_geocode(self, latitude: float, longitude: float):
 
         params = {
@@ -27,9 +27,9 @@ class GoogleMapsService:
         return data["results"][0]["formatted_address"]
 
     def get_driving_route(
-            self,
-            origin: str,
-            destination: str,
+        self,
+        origin: str,
+        destination: str,
     ):
         payload = {
             "origin": {
@@ -48,6 +48,7 @@ class GoogleMapsService:
             "X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY,
             "X-Goog-FieldMask": (
                 "routes.duration,"
+                "routes.staticDuration,"
                 "routes.distanceMeters"
             ),
         }
@@ -63,8 +64,6 @@ class GoogleMapsService:
 
         data = response.json()
 
-        print(data)
-
         if not data.get("routes"):
             return None
 
@@ -73,4 +72,5 @@ class GoogleMapsService:
         return {
             "duration": route["duration"],
             "distance_meters": route["distanceMeters"],
-    }
+            "static_duration": route.get("staticDuration"),
+        }

@@ -2,7 +2,6 @@
 
 import CommuteForm from "./CommuteForm";
 import RecommendationCard from "./RecommendationCard";
-import InfoCards from "./InfoCards";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useEffect, useState } from "react";
 
@@ -12,6 +11,7 @@ type CommutePlan = {
     driving_route: {
         duration: string;
         distance_meters: number;
+        static_duration?: string | null;
     } | null;
     weather: {
         temperature: number | null;
@@ -23,6 +23,42 @@ type CommutePlan = {
     } | null;
     weather_notice: string | null;
     recommendation: string | null;
+    decision: {
+        recommended_mode: "driving" | "transit";
+        recommended_label: string;
+        recommended_icon: string;
+        leave_time: string | null;
+        arrival_time: string | null;
+        travel_time_minutes: number | null;
+        headline: string;
+        reason: string;
+        summary: string;
+        decision_factors: Array<{
+            type: string;
+            importance: "low" | "medium" | "high";
+            message: string;
+        }>;
+        highlights: Array<{
+            icon: string;
+            label: string;
+        }>;
+        comparison: {
+            title: string;
+            recommended_mode: "driving" | "transit";
+            driving: {
+                label: string;
+                leave_time: string | null;
+                arrival_time: string | null;
+                travel_time_minutes: number | null;
+            };
+            transit: {
+                label: string;
+                available: boolean;
+                status: string;
+            };
+        };
+        destination: string;
+    } | null;
 };
 
 export default function HomeClient() {
@@ -53,6 +89,8 @@ export default function HomeClient() {
                     latitude: location.latitude,
                     longitude: location.longitude,
                     destination,
+                    arrival_time: arrivalTime,
+                    preference,
                 }),
             });
 
@@ -81,9 +119,10 @@ export default function HomeClient() {
     }, [location]);
 
     return (
-        <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.95),_rgba(224,231,255,0.88)_42%,_rgba(255,237,213,0.82)_100%)] px-4 py-6 text-slate-900">
-            <section className="mx-auto flex max-w-6xl flex-col gap-6">
-                <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+        <main className="min-h-screen bg-[var(--background)] px-4 py-6 text-[var(--foreground)] md:px-6 md:py-8">
+            <section className="mx-auto max-w-7xl">
+                <div className="overflow-hidden rounded-[32px] border border-[var(--line)] bg-[var(--panel)] shadow-[0_12px_40px_rgba(28,28,46,0.05)]">
+                    <div className="grid lg:grid-cols-[360px_1fr]">
                     <CommuteForm
                         currentLocation={result?.current_location ?? "Detecting your location..."}
                         destination={destination}
@@ -103,13 +142,8 @@ export default function HomeClient() {
                         arrivalTime={arrivalTime}
                         preference={preference}
                     />
+                    </div>
                 </div>
-
-                <InfoCards
-                    result={result}
-                    arrivalTime={arrivalTime}
-                    preference={preference}
-                />
             </section>
         </main>
     );

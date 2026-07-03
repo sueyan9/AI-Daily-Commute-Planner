@@ -9,6 +9,8 @@ class CommuteRequest(BaseModel):
     latitude: float
     longitude: float
     destination: str
+    arrival_time: str | None = None
+    preference: str | None = None
 
 
 planner = PlannerService()
@@ -20,4 +22,6 @@ async def plan_commute(request: CommuteRequest):
         latitude=request.latitude,
         longitude=request.longitude,
         destination=request.destination,
+        arrival_time=request.arrival_time,
+        preference=request.preference,
     )

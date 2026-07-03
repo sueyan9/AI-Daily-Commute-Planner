@@ -24,63 +24,52 @@ export default function CommuteForm({
     locationError,
 }: Props) {
     return (
-        <section className="rounded-[28px] bg-white/68 p-5 shadow-xl shadow-slate-200/70 backdrop-blur md:p-6">
+        <section className="border-b border-[var(--line)] p-6 md:p-8 lg:min-h-full lg:border-r lg:border-b-0">
             <div>
-                <p className="text-sm font-medium text-indigo-500">Commute setup</p>
-                <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
+                <p className="ui-label">Commute setup</p>
+                <h1 className="mt-3 text-[2rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">
                     Plan today&apos;s commute
                 </h1>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="mt-3 max-w-xs text-[15px] leading-7 text-[var(--muted)]">
                     Start with your live location, pick the destination, then let the
                     planner tell you when to leave.
                 </p>
             </div>
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-10 space-y-6">
                 <Field
                     label="Current location"
-                    icon="📍"
                     value={currentLocation}
                     readOnly
                     helperText="Live browser location"
                 />
                 <Field
                     label="Destination"
-                    icon="🏁"
                     value={destination}
                     onChange={onDestinationChange}
                 />
                 <Field
                     label="Arrive by"
-                    icon="🕒"
                     value={arrivalTime}
                     type="time"
                     onChange={onArrivalTimeChange}
                 />
 
-                <label className="block rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50">
-                            🚶
-                        </span>
-
-                        <div className="flex-1">
-                            <p className="text-xs font-medium text-slate-500">Preference</p>
-                            <select
-                                value={preference}
-                                onChange={(event) => onPreferenceChange(event.target.value)}
-                                className="mt-1 w-full bg-transparent text-base font-semibold text-slate-900 outline-none"
-                            >
-                                <option>Fewer transfers</option>
-                                <option>Fastest route</option>
-                                <option>Less walking</option>
-                            </select>
-                        </div>
-                    </div>
+                <label className="block">
+                    <p className="ui-label">Preference</p>
+                    <select
+                        value={preference}
+                        onChange={(event) => onPreferenceChange(event.target.value)}
+                        className="mt-3 h-14 w-full rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] px-4 text-[15px] font-medium text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                    >
+                        <option>Fewer transfers</option>
+                        <option>Fastest route</option>
+                        <option>Less walking</option>
+                    </select>
                 </label>
 
                 {locationError && (
-                    <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {locationError}
                     </div>
                 )}
@@ -88,9 +77,9 @@ export default function CommuteForm({
                 <button
                     onClick={onPlan}
                     disabled={isLoading}
-                    className="mt-2 w-full rounded-2xl bg-indigo-500 px-4 py-4 font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                    className="mt-4 h-14 w-full rounded-2xl bg-[var(--foreground)] px-4 text-[15px] font-medium text-white transition hover:bg-[#2c2c42] disabled:cursor-not-allowed disabled:bg-[#a7a9b8]"
                 >
-                    {isLoading ? "Refreshing..." : "Refresh analysis"}
+                    {isLoading ? "Analyzing..." : "Plan my commute"}
                 </button>
             </div>
         </section>
@@ -99,7 +88,6 @@ export default function CommuteForm({
 
 function Field({
                    label,
-                   icon,
                    value,
                    type = "text",
                    readOnly = false,
@@ -107,7 +95,6 @@ function Field({
                    onChange,
                }: {
     label: string;
-    icon: string;
     value: string;
     type?: "text" | "time";
     readOnly?: boolean;
@@ -115,26 +102,18 @@ function Field({
     onChange?: (value: string) => void;
 }) {
     return (
-        <label className="block rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50">
-                    {icon}
-                </span>
-
-                <div className="flex-1">
-                    <p className="text-xs font-medium text-slate-500">{label}</p>
-                    <input
-                        type={type}
-                        value={value}
-                        readOnly={readOnly}
-                        onChange={(event) => onChange?.(event.target.value)}
-                        className="mt-1 w-full bg-transparent text-base font-semibold text-slate-900 outline-none read-only:text-slate-800"
-                    />
-                    {helperText && (
-                        <p className="mt-1 text-xs text-slate-400">{helperText}</p>
-                    )}
-                </div>
-            </div>
+        <label className="block">
+            <p className="ui-label">{label}</p>
+            <input
+                type={type}
+                value={value}
+                readOnly={readOnly}
+                onChange={(event) => onChange?.(event.target.value)}
+                className="mt-3 h-14 w-full rounded-2xl border border-[var(--line)] bg-[var(--panel-strong)] px-4 text-[15px] font-medium text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] read-only:text-[#404255]"
+            />
+            {helperText && (
+                <p className="mt-2 text-xs text-[var(--muted)]">{helperText}</p>
+            )}
         </label>
     );
 }

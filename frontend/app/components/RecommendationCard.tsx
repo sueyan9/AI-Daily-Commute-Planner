@@ -20,29 +20,37 @@ type Props = {
     result: CommutePlan | null;
     isLoading: boolean;
     error: string | null;
+    arrivalTime: string;
+    preference: string;
 };
 
 export default function RecommendationCard({
     result,
     isLoading,
     error,
+    arrivalTime,
+    preference,
 }: Props) {
     const driveMinutes = getDriveMinutes(result?.driving_route?.duration);
     const driveDistance = result?.driving_route?.distance_meters;
     const weather = result?.weather;
+    const suggestedDeparture = getSuggestedDeparture(arrivalTime, driveMinutes);
+    const routeLabel = getRouteLabel(result?.recommendation);
 
     return (
-        <section className="rounded-[30px] bg-white/65 p-6 shadow-xl backdrop-blur">
+        <section className="rounded-[30px] bg-white/68 p-6 shadow-xl shadow-slate-200/70 backdrop-blur">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <p className="text-sm font-medium text-indigo-500">AI commute summary</p>
-                    <h2 className="mt-2 text-4xl font-bold">Drive overview</h2>
-                    <p className="mt-1 text-slate-500">
-                        {result?.destination ?? "Waiting for route analysis"}
+                    <p className="text-sm font-medium text-indigo-500">Best route today</p>
+                    <h2 className="mt-2 text-4xl font-bold tracking-tight text-slate-950 md:text-5xl">
+                        {suggestedDeparture ?? "--:--"}
+                    </h2>
+                    <p className="mt-2 text-base text-slate-600">
+                        Leave by this time to arrive around {formatTime(arrivalTime)}.
                     </p>
                 </div>
 
-                <div className="rounded-2xl bg-indigo-50 px-4 py-3">
+                <div className="rounded-2xl bg-indigo-50/90 px-4 py-3">
                     <p className="text-xs text-slate-500">Status</p>
                     <p className="mt-1 text-xl font-bold text-indigo-600">
                         {isLoading ? "Loading" : result ? "Ready" : "Idle"}
@@ -50,11 +58,28 @@ export default function RecommendationCard({
                 </div>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="mt-6 flex flex-wrap gap-3 text-sm">
+                <span className="rounded-full bg-white/80 px-4 py-2 font-medium text-slate-700 shadow-sm">
+                    {routeLabel}
+                </span>
+                <span className="rounded-full bg-white/80 px-4 py-2 font-medium text-slate-700 shadow-sm">
+                    {result?.destination ?? "Waiting for destination"}
+                </span>
+                <span className="rounded-full bg-white/80 px-4 py-2 font-medium text-slate-700 shadow-sm">
+                    Preference: {preference}
+                </span>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-4">
                 <StatCard
                     icon="⏱"
-                    title="Drive Time"
+                    title="Travel time"
                     value={driveMinutes ? `${driveMinutes} min` : "--"}
+                />
+                <StatCard
+                    icon="🕓"
+                    title="Arrival"
+                    value={formatTime(arrivalTime)}
                 />
                 <StatCard
                     icon="🛣"
@@ -79,10 +104,10 @@ export default function RecommendationCard({
             <div className="mt-8 rounded-3xl bg-gradient-to-r from-indigo-50 to-sky-50 p-6">
                 <div className="flex items-center gap-2">
                     <span className="text-xl">🤖</span>
-                    <h3 className="font-semibold text-slate-900">AI Recommendation</h3>
+                    <h3 className="font-semibold text-slate-900">Recommendation</h3>
                 </div>
 
-                <p className="mt-4 min-h-24 leading-7 text-slate-600">
+                <p className="mt-4 min-h-24 text-base leading-7 text-slate-600">
                     {error
                         ? error
                         : isLoading
@@ -97,7 +122,14 @@ export default function RecommendationCard({
                     </div>
                 )}
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl bg-white/80 p-4">
+                        <p className="text-sm text-slate-500">Suggested leave time</p>
+                        <p className="mt-1 text-3xl font-bold text-indigo-600">
+                            {suggestedDeparture ?? "--:--"}
+                        </p>
+                    </div>
+
                     <div className="rounded-2xl bg-white/80 p-4">
                         <p className="text-sm text-slate-500">Feels like</p>
                         <p className="mt-1 text-3xl font-bold text-indigo-600">
@@ -150,4 +182,50 @@ function getDriveMinutes(duration: string | undefined): number | null {
     }
 
     return Math.round(seconds / 60);
+}
+
+function getSuggestedDeparture(
+    arrivalTime: string,
+    driveMinutes: number | null
+): string | null {
+    if (!driveMinutes) {
+        return null;
+    }
+
+    const [hours, minutes] = arrivalTime.split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+    }
+
+    const totalMinutes = hours * 60 + minutes - driveMinutes;
+    const normalizedMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+    const outputHours = Math.floor(normalizedMinutes / 60);
+    const outputMinutes = normalizedMinutes % 60;
+
+    return formatTime(`${String(outputHours).padStart(2, "0")}:${String(outputMinutes).padStart(2, "0")}`);
+}
+
+function formatTime(value: string): string {
+    const [hours, minutes] = value.split(":").map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return value;
+    }
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const normalizedHours = hours % 12 || 12;
+    return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function getRouteLabel(recommendation: string | null | undefined): string {
+    const normalized = recommendation?.toLowerCase() ?? "";
+
+    if (normalized.includes("public transport") || normalized.includes("transit")) {
+        return "Public transport";
+    }
+
+    if (normalized.includes("car") || normalized.includes("drive")) {
+        return "Driving";
+    }
+
+    return "Best available route";
 }

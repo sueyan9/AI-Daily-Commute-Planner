@@ -1,6 +1,5 @@
 "use client";
 
-import Hero from "./Hero";
 import CommuteForm from "./CommuteForm";
 import RecommendationCard from "./RecommendationCard";
 import InfoCards from "./InfoCards";
@@ -31,6 +30,9 @@ export default function HomeClient() {
     const [result, setResult] = useState<CommutePlan | null>(null);
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [destination, setDestination] = useState("Auckland CBD");
+    const [arrivalTime, setArrivalTime] = useState("18:25");
+    const [preference, setPreference] = useState("Fewer transfers");
 
     const handlePlanCommute = async () => {
         if (!location) {
@@ -50,7 +52,7 @@ export default function HomeClient() {
                 body: JSON.stringify({
                     latitude: location.latitude,
                     longitude: location.longitude,
-                    destination: "Auckland CBD",
+                    destination,
                 }),
             });
 
@@ -79,69 +81,36 @@ export default function HomeClient() {
     }, [location]);
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-sky-100 via-indigo-100 to-orange-100 px-4 py-6 text-slate-900">
+        <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.95),_rgba(224,231,255,0.88)_42%,_rgba(255,237,213,0.82)_100%)] px-4 py-6 text-slate-900">
             <section className="mx-auto flex max-w-6xl flex-col gap-6">
-                <div className="rounded-[24px] bg-white/70 p-5 text-sm shadow-lg backdrop-blur">
-                    <p className="text-sm font-medium text-slate-500">📍 Current Location</p>
-
-                    <p className="mt-2 text-lg font-semibold text-slate-900">
-                        {result?.current_location ?? "Detecting your location..."}
-                    </p>
-
-                    {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
-                        {result?.driving_route && (
-                            <div className="mt-5 rounded-2xl bg-white/80 p-4">
-
-                                <p className="text-sm font-medium text-slate-500">
-                                    🚗 Driving
-                                </p>
-
-                                <p className="mt-2 text-xl font-semibold">
-                                    {Math.round(parseInt(result.driving_route.duration) / 60)} min
-                                </p>
-
-                                <p className="text-sm text-slate-500">
-                                    {(result.driving_route.distance_meters / 1000).toFixed(1)} km
-                                </p>
-
-                                {result?.weather && (
-                                    <div className="mt-5 rounded-2xl bg-white/80 p-4">
-                                        <p className="text-sm font-medium text-slate-500">🌤 Weather</p>
-
-                                        <p className="mt-2 text-xl font-semibold text-slate-900">
-                                            {result.weather.temperature}°C
-                                        </p>
-
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            Feels like {result.weather.feels_like}°C · Wind {result.weather.wind_speed} km/h
-                                        </p>
-                                    </div>
-                                )}
-
-                                {!result?.weather && result?.weather_notice && (
-                                    <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-amber-800">
-                                        <p className="text-sm font-medium">Weather</p>
-                                        <p className="mt-1 text-sm">{result.weather_notice}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                </div>
-
-                <Hero />
-
                 <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-                    <CommuteForm onPlan={handlePlanCommute} />
+                    <CommuteForm
+                        currentLocation={result?.current_location ?? "Detecting your location..."}
+                        destination={destination}
+                        arrivalTime={arrivalTime}
+                        preference={preference}
+                        onDestinationChange={setDestination}
+                        onArrivalTimeChange={setArrivalTime}
+                        onPreferenceChange={setPreference}
+                        onPlan={handlePlanCommute}
+                        isLoading={isLoading}
+                        locationError={error}
+                    />
                     <RecommendationCard
                         result={result}
                         isLoading={isLoading}
                         error={requestError}
+                        arrivalTime={arrivalTime}
+                        preference={preference}
                     />
                 </div>
 
-                <InfoCards />
+                <InfoCards
+                    result={result}
+                    arrivalTime={arrivalTime}
+                    preference={preference}
+                />
             </section>
-
         </main>
     );
 }

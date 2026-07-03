@@ -22,6 +22,7 @@ type CommutePlan = {
         weather_code: number | null;
         wind_speed: number | null;
     } | null;
+    weather_notice: string | null;
     recommendation: string | null;
 };
 
@@ -114,6 +115,13 @@ export default function HomeClient() {
                                         <p className="mt-1 text-sm text-slate-500">
                                             Feels like {result.weather.feels_like}°C · Wind {result.weather.wind_speed} km/h
                                         </p>
+                                    </div>
+                                )}
+
+                                {!result?.weather && result?.weather_notice && (
+                                    <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-amber-800">
+                                        <p className="text-sm font-medium">Weather</p>
+                                        <p className="mt-1 text-sm">{result.weather_notice}</p>
                                     </div>
                                 )}
                             </div>

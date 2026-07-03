@@ -26,6 +26,11 @@ class PlannerService:
             )
 
         weather = self.weather.get_current_weather(latitude, longitude)
+        weather_notice = None
+
+        if weather is None:
+            weather_notice = "Weather data is temporarily unavailable."
+
         recommendation = self.llm.generate_commute_recommendation(
             current_location=current_location,
             destination=destination,
@@ -38,5 +43,6 @@ class PlannerService:
             "destination": destination,
             "driving_route": driving_route,
             "weather": weather,
+            "weather_notice": weather_notice,
             "recommendation": recommendation,
         }

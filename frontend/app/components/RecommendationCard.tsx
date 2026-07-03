@@ -12,6 +12,7 @@ type CommutePlan = {
         weather_code: number | null;
         wind_speed: number | null;
     } | null;
+    weather_notice: string | null;
     recommendation: string | null;
 };
 
@@ -89,6 +90,12 @@ export default function RecommendationCard({
                           : result?.recommendation ??
                             "Recommendation will appear here after route analysis."}
                 </p>
+
+                {result?.weather_notice && (
+                    <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        {result.weather_notice}
+                    </div>
+                )}
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl bg-white/80 p-4">

@@ -135,6 +135,8 @@ class LLMService:
             parts.append("There is some rain, so leaving a bit earlier is sensible.")
         elif wind_speed is not None and wind_speed >= 30:
             parts.append("It is quite windy, so allow a little extra travel buffer.")
+        elif weather is None:
+            parts.append("Weather data is temporarily unavailable, so this advice is based on route data only.")
         else:
             parts.append("Current weather does not show a strong reason to avoid driving.")
 

@@ -13,6 +13,20 @@ type CommutePlan = {
         distance_meters: number;
         static_duration?: string | null;
     } | null;
+    transit_route?: {
+        available: boolean;
+        status: string;
+        route_label?: string | null;
+        departure_time?: string | null;
+        arrival_time?: string | null;
+        travel_time_minutes?: number | null;
+        next_departures?: Array<{
+            time: string;
+            scheduled_time?: string | null;
+            delay_minutes?: number | null;
+            status: string;
+        }>;
+    } | null;
     weather: {
         temperature: number | null;
         feels_like: number | null;
@@ -57,6 +71,16 @@ type CommutePlan = {
                 label: string;
                 available: boolean;
                 status: string;
+                route_label?: string | null;
+                departure_time?: string | null;
+                arrival_time?: string | null;
+                travel_time_minutes?: number | null;
+                next_departures?: Array<{
+                    time: string;
+                    scheduled_time?: string | null;
+                    delay_minutes?: number | null;
+                    status: string;
+                }>;
             };
         };
     } | null;
@@ -67,7 +91,6 @@ type Props = {
     isLoading: boolean;
     error: string | null;
     arrivalTime: string;
-    preference: string;
 };
 
 export default function RecommendationCard({
@@ -75,7 +98,6 @@ export default function RecommendationCard({
     isLoading,
     error,
     arrivalTime,
-    preference,
 }: Props) {
     const decision = result?.decision;
     const factors = decision?.decision_factors ?? getFallbackFactors(result);
@@ -91,9 +113,16 @@ export default function RecommendationCard({
     const trafficStatus =
         decision?.traffic?.tag ??
         getTrafficFallback(result?.driving_route?.duration, result?.driving_route?.static_duration);
+    const transitMinutes = comparison?.transit.travel_time_minutes ?? result?.transit_route?.travel_time_minutes;
+    const transitHeadline =
+        comparison?.transit.route_label ?? result?.transit_route?.route_label ?? "Public transport";
+    const nextTransitTimes = (comparison?.transit.next_departures ?? result?.transit_route?.next_departures ?? [])
+        .map((departure) => departure.time)
+        .slice(0, 3)
+        .join(" · ");
     const transitStatus = comparison?.transit.available
-        ? undefined
-        : `${comparison?.transit.status ?? "Transit routing is not connected yet."} Preference: ${preference}.`;
+        ? `${transitHeadline}${nextTransitTimes ? ` · ${nextTransitTimes}` : ""}`
+        : comparison?.transit.status ?? "Transit routing is not connected yet.";
 
     return (
         <section className="p-6 md:p-8">
@@ -186,12 +215,25 @@ export default function RecommendationCard({
                     />
                     <OptionRow
                         icon={<TransitIcon />}
-                        label={comparison?.transit.label ?? "Public transport"}
-                        travelTime={comparison?.transit.available ? "Live" : "--"}
-                        leaveValue={comparison?.transit.available ? "Connected" : transitStatus ?? "Pending"}
-                        arriveValue={comparison?.transit.available ? "Available" : "Not ready"}
+                        label={comparison?.transit.route_label ?? comparison?.transit.label ?? "Public transport"}
+                        travelTime={comparison?.transit.available ? `${transitMinutes ?? "--"} min` : "--"}
+                        leaveValue={
+                            comparison?.transit.available
+                                ? comparison?.transit.departure_time ?? transitStatus ?? "Live"
+                                : transitStatus ?? "Pending"
+                        }
+                        arriveValue={
+                            comparison?.transit.available
+                                ? comparison?.transit.arrival_time ?? "Live"
+                                : "Not ready"
+                        }
                         isRecommended={recommendedMode === "transit"}
                         condensedStatus={!comparison?.transit.available}
+                        note={
+                            comparison?.transit.available
+                                ? comparison?.transit.status
+                                : undefined
+                        }
                     />
                 </div>
             </section>
@@ -265,6 +307,7 @@ function OptionRow({
     arriveValue,
     isRecommended,
     condensedStatus = false,
+    note,
 }: {
     icon: ReactNode;
     label: string;
@@ -273,6 +316,7 @@ function OptionRow({
     arriveValue: string;
     isRecommended: boolean;
     condensedStatus?: boolean;
+    note?: string;
 }) {
     return (
         <div
@@ -293,6 +337,7 @@ function OptionRow({
                 <div>
                     <p className="text-lg font-medium tracking-[-0.03em] text-[var(--foreground)]">{label}</p>
                     {isRecommended && <p className="mt-1 text-sm text-[var(--accent)]">Recommended now</p>}
+                    {note && <p className="mt-1 text-sm text-[var(--muted)]">{note}</p>}
                 </div>
             </div>
             <div>

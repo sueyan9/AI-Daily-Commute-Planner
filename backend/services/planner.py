@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
+from services.auckland_transport import AucklandTransportService
 from services.google_maps import GoogleMapsService
 from services.weather import WeatherService
 
@@ -10,6 +11,7 @@ from services.weather import WeatherService
 class PlannerService:
     def __init__(self) -> None:
         self.google_maps = GoogleMapsService()
+        self.auckland_transport = AucklandTransportService()
         self.weather = WeatherService()
 
     def create_commute_plan(
@@ -23,11 +25,23 @@ class PlannerService:
     ) -> dict:
         current_location = self.google_maps.reverse_geocode(latitude, longitude)
         driving_route = None
+        destination_location = self.google_maps.geocode_address(destination)
+        transit_route = None
 
         if current_location:
             driving_route = self.google_maps.get_driving_route(
                 origin=current_location,
                 destination=destination,
+            )
+
+        if destination_location:
+            transit_route = self.auckland_transport.get_transit_option(
+                origin_latitude=latitude,
+                origin_longitude=longitude,
+                destination_latitude=destination_location["latitude"],
+                destination_longitude=destination_location["longitude"],
+                destination_label=destination_location["formatted_address"],
+                arrival_time=arrival_time,
             )
 
         weather = self.weather.get_current_weather(latitude, longitude)
@@ -39,6 +53,7 @@ class PlannerService:
         decision = self._build_decision(
             destination=destination,
             driving_route=driving_route,
+            transit_route=transit_route,
             weather=weather,
             weather_notice=weather_notice,
             arrival_time=arrival_time,
@@ -49,6 +64,7 @@ class PlannerService:
             "current_location": current_location,
             "destination": destination,
             "driving_route": driving_route,
+            "transit_route": transit_route,
             "weather": weather,
             "weather_notice": weather_notice,
             "recommendation": decision["summary"],
@@ -60,6 +76,7 @@ class PlannerService:
         *,
         destination: str,
         driving_route: dict[str, Any] | None,
+        transit_route: dict[str, Any] | None,
         weather: dict[str, Any] | None,
         weather_notice: str | None,
         arrival_time: str | None,
@@ -74,6 +91,30 @@ class PlannerService:
         leave_time = self._calculate_leave_time(arrival_time, drive_minutes)
         traffic = self._classify_traffic(drive_minutes, static_minutes)
         weather_summary = self._classify_weather(weather)
+        transit_minutes = (
+            transit_route.get("travel_time_minutes")
+            if transit_route and transit_route.get("available")
+            else None
+        )
+        recommended_mode = self._choose_mode(
+            drive_minutes=drive_minutes,
+            traffic_level=traffic["level"],
+            transit_route=transit_route,
+            preference=preference,
+        )
+        recommended_label = "Public transport" if recommended_mode == "transit" else "Drive"
+        recommended_icon = "🚌" if recommended_mode == "transit" else "🚗"
+        recommended_leave_time = (
+            transit_route.get("departure_time")
+            if recommended_mode == "transit" and transit_route
+            else leave_time
+        )
+        recommended_arrival_time = (
+            transit_route.get("arrival_time")
+            if recommended_mode == "transit" and transit_route
+            else self._format_time(arrival_time)
+        )
+        recommended_travel_minutes = transit_minutes if recommended_mode == "transit" else drive_minutes
 
         factors = [
             {
@@ -93,10 +134,16 @@ class PlannerService:
                 {
                     "type": "preference",
                     "importance": "low",
-                    "message": (
-                        f"Preference saved: {preference}. "
-                        "This will be applied to route comparisons once transit routing is live."
-                    ),
+                    "message": f"Preference applied: {preference}.",
+                }
+            )
+
+        if transit_route and transit_route.get("available"):
+            factors.append(
+                {
+                    "type": "transit",
+                    "importance": "medium",
+                    "message": transit_route["status"],
                 }
             )
 
@@ -109,11 +156,17 @@ class PlannerService:
                 }
             )
 
-        headline = self._build_headline(traffic_level=traffic["level"], weather_level=weather_summary["level"])
+        headline = self._build_headline(
+            traffic_level=traffic["level"],
+            weather_level=weather_summary["level"],
+            recommended_mode=recommended_mode,
+        )
         reason = self._build_reason(
+            recommended_mode=recommended_mode,
             traffic_message=traffic["message"],
             weather_message=weather_summary["message"],
             drive_minutes=drive_minutes,
+            transit_route=transit_route,
         )
 
         summary = headline
@@ -122,17 +175,19 @@ class PlannerService:
 
         highlights = self._build_highlights(
             drive_minutes=drive_minutes,
+            transit_minutes=transit_minutes,
             traffic=traffic,
             weather_summary=weather_summary,
+            recommended_mode=recommended_mode,
         )
 
         return {
-            "recommended_mode": "driving",
-            "recommended_label": "Drive",
-            "recommended_icon": "🚗",
-            "leave_time": leave_time,
-            "arrival_time": self._format_time(arrival_time),
-            "travel_time_minutes": drive_minutes,
+            "recommended_mode": recommended_mode,
+            "recommended_label": recommended_label,
+            "recommended_icon": recommended_icon,
+            "leave_time": recommended_leave_time,
+            "arrival_time": recommended_arrival_time,
+            "travel_time_minutes": recommended_travel_minutes,
             "traffic": traffic,
             "headline": headline,
             "reason": reason,
@@ -141,7 +196,7 @@ class PlannerService:
             "highlights": highlights,
             "comparison": {
                 "title": "Today's Comparison",
-                "recommended_mode": "driving",
+                "recommended_mode": recommended_mode,
                 "driving": {
                     "label": "Drive",
                     "leave_time": leave_time,
@@ -150,14 +205,29 @@ class PlannerService:
                 },
                 "transit": {
                     "label": "Public transport",
-                    "available": False,
-                    "status": "Transit routing is not connected yet.",
+                    "available": bool(transit_route and transit_route.get("available")),
+                    "status": transit_route["status"] if transit_route else "Transit data is unavailable.",
+                    "route_label": transit_route.get("route_label") if transit_route else None,
+                    "departure_time": transit_route.get("departure_time") if transit_route else None,
+                    "arrival_time": transit_route.get("arrival_time") if transit_route else None,
+                    "travel_time_minutes": transit_minutes,
+                    "next_departures": transit_route.get("next_departures", []) if transit_route else [],
                 },
             },
             "destination": destination,
         }
 
-    def _build_headline(self, *, traffic_level: str, weather_level: str) -> str:
+    def _build_headline(
+        self,
+        *,
+        traffic_level: str,
+        weather_level: str,
+        recommended_mode: str,
+    ) -> str:
+        if recommended_mode == "transit":
+            if weather_level == "severe":
+                return "Public transport is the safer call today."
+            return "Public transport looks like the better live option."
         if weather_level == "severe":
             return "Drive with extra buffer today."
         if traffic_level == "heavy":
@@ -169,16 +239,31 @@ class PlannerService:
     def _build_reason(
         self,
         *,
+        recommended_mode: str,
         traffic_message: str,
         weather_message: str,
         drive_minutes: int | None,
+        transit_route: dict[str, Any] | None,
     ) -> str:
         parts: list[str] = []
 
-        if drive_minutes is not None:
+        if recommended_mode == "transit" and transit_route and transit_route.get("available"):
+            route_label = transit_route.get("route_label") or "public transport"
+            departure_time = transit_route.get("departure_time")
+            travel_time = transit_route.get("travel_time_minutes")
+            status = transit_route.get("status")
+
+            if departure_time:
+                parts.append(f"Catch {route_label} at {departure_time}.")
+            if travel_time is not None:
+                parts.append(f"The trip is currently around {travel_time} minutes.")
+            if status:
+                parts.append(status)
+        elif drive_minutes is not None:
             parts.append(f"The drive is currently around {drive_minutes} minutes.")
 
-        parts.append(traffic_message)
+        if recommended_mode == "driving":
+            parts.append(traffic_message)
         parts.append(weather_message)
 
         return " ".join(part for part in parts if part)
@@ -187,12 +272,16 @@ class PlannerService:
         self,
         *,
         drive_minutes: int | None,
+        transit_minutes: int | None,
         traffic: dict[str, str],
         weather_summary: dict[str, str],
+        recommended_mode: str,
     ) -> list[dict[str, str]]:
         highlights: list[dict[str, str]] = []
 
-        if drive_minutes is not None:
+        if recommended_mode == "transit" and transit_minutes is not None:
+            highlights.append({"icon": "🚌", "label": f"{transit_minutes} min transit"})
+        elif drive_minutes is not None:
             highlights.append({"icon": "🚗", "label": f"{drive_minutes} min"})
 
         highlights.append(
@@ -209,6 +298,35 @@ class PlannerService:
         )
 
         return highlights
+
+    def _choose_mode(
+        self,
+        *,
+        drive_minutes: int | None,
+        traffic_level: str,
+        transit_route: dict[str, Any] | None,
+        preference: str | None,
+    ) -> str:
+        if not transit_route or not transit_route.get("available"):
+            return "driving"
+
+        transit_minutes = transit_route.get("travel_time_minutes")
+        preference_value = (preference or "").strip().lower()
+
+        if drive_minutes is None:
+            return "transit"
+
+        if preference_value == "fastest route":
+            return "transit" if transit_minutes is not None and transit_minutes < drive_minutes else "driving"
+
+        if preference_value == "fewer transfers":
+            if transit_minutes is not None and transit_minutes <= drive_minutes + 10:
+                return "transit"
+
+        if traffic_level == "heavy" and transit_minutes is not None and transit_minutes <= drive_minutes + 12:
+            return "transit"
+
+        return "driving"
 
     def _classify_traffic(
         self,

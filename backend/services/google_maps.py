@@ -7,6 +7,29 @@ class GoogleMapsService:
     BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
     ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
+    def geocode_address(self, address: str):
+        params = {
+            "address": address,
+            "key": settings.GOOGLE_MAPS_API_KEY,
+        }
+
+        response = requests.get(
+            self.BASE_URL,
+            params=params,
+            timeout=10,
+        )
+        data = response.json()
+
+        if data["status"] != "OK":
+            return None
+
+        location = data["results"][0]["geometry"]["location"]
+        return {
+            "latitude": location["lat"],
+            "longitude": location["lng"],
+            "formatted_address": data["results"][0]["formatted_address"],
+        }
+
     def reverse_geocode(self, latitude: float, longitude: float):
 
         params = {

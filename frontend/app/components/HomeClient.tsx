@@ -13,6 +13,20 @@ type CommutePlan = {
         distance_meters: number;
         static_duration?: string | null;
     } | null;
+    transit_route?: {
+        available: boolean;
+        status: string;
+        route_label?: string | null;
+        departure_time?: string | null;
+        arrival_time?: string | null;
+        travel_time_minutes?: number | null;
+        next_departures?: Array<{
+            time: string;
+            scheduled_time?: string | null;
+            delay_minutes?: number | null;
+            status: string;
+        }>;
+    } | null;
     weather: {
         temperature: number | null;
         feels_like: number | null;
@@ -55,6 +69,16 @@ type CommutePlan = {
                 label: string;
                 available: boolean;
                 status: string;
+                route_label?: string | null;
+                departure_time?: string | null;
+                arrival_time?: string | null;
+                travel_time_minutes?: number | null;
+                next_departures?: Array<{
+                    time: string;
+                    scheduled_time?: string | null;
+                    delay_minutes?: number | null;
+                    status: string;
+                }>;
             };
         };
         destination: string;
@@ -140,7 +164,6 @@ export default function HomeClient() {
                         isLoading={isLoading}
                         error={requestError}
                         arrivalTime={arrivalTime}
-                        preference={preference}
                     />
                     </div>
                 </div>

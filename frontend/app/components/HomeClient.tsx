@@ -7,9 +7,29 @@ import InfoCards from "./InfoCards";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useEffect, useState } from "react";
 
+type CommutePlan = {
+    current_location: string | null;
+    destination: string;
+    driving_route: {
+        duration: string;
+        distance_meters: number;
+    } | null;
+    weather: {
+        temperature: number | null;
+        feels_like: number | null;
+        precipitation: number | null;
+        rain: number | null;
+        weather_code: number | null;
+        wind_speed: number | null;
+    } | null;
+    recommendation: string | null;
+};
+
 export default function HomeClient() {
     const { location, error } = useGeolocation();
-    const [result, setResult] = useState<any>(null);
+    const [result, setResult] = useState<CommutePlan | null>(null);
+    const [requestError, setRequestError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handlePlanCommute = async () => {
         if (!location) {
@@ -17,26 +37,43 @@ export default function HomeClient() {
             return;
         }
 
-        const response = await fetch("http://localhost:8000/commute/plan", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                latitude: location.latitude,
-                longitude: location.longitude,
-                destination: "Auckland CBD",
-            }),
-        });
+        setIsLoading(true);
+        setRequestError(null);
 
-        const data = await response.json();
-        console.log(data);
-        setResult(data);
+        try {
+            const response = await fetch("http://localhost:8000/commute/plan", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    destination: "Auckland CBD",
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Backend request failed.");
+            }
+
+            const data: CommutePlan = await response.json();
+            setResult(data);
+        } catch {
+            setRequestError("Unable to load the latest commute recommendation.");
+        } finally {
+            setIsLoading(false);
+        }
     };
+
     useEffect(() => {
         if (!location) return;
 
-        handlePlanCommute();
+        const timeoutId = window.setTimeout(() => {
+            void handlePlanCommute();
+        }, 0);
+
+        return () => window.clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location]);
 
@@ -87,7 +124,11 @@ export default function HomeClient() {
 
                 <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
                     <CommuteForm onPlan={handlePlanCommute} />
-                    <RecommendationCard />
+                    <RecommendationCard
+                        result={result}
+                        isLoading={isLoading}
+                        error={requestError}
+                    />
                 </div>
 
                 <InfoCards />

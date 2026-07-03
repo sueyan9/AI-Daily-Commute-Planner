@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import requests
@@ -83,9 +84,6 @@ class LLMService:
         driving_route: dict[str, Any] | None,
         weather: dict[str, Any] | None,
     ) -> list[dict[str, str]]:
-        route_summary = self._format_route_summary(driving_route)
-        weather_summary = self._format_weather_summary(weather)
-
         system_prompt = (
             "You are LeaveWise, an AI daily commute assistant. "
             "Give a short, practical commute recommendation. "
@@ -94,42 +92,28 @@ class LLMService:
             "Keep the answer under 70 words and avoid technical jargon."
         )
 
+        commute_context = {
+            "current_location": current_location,
+            "destination": destination,
+            "driving_route": driving_route,
+            "weather": weather,
+        }
+
         user_prompt = (
-            f"Current location: {current_location or 'Unknown'}\n"
-            f"Destination: {destination}\n"
-            f"Driving route: {route_summary}\n"
-            f"Weather: {weather_summary}\n\n"
-            "Write one short recommendation for the user."
+            "Use the commute data below to write one short recommendation for the user.\n\n"
+            f"{json.dumps(commute_context, ensure_ascii=True, indent=2)}\n\n"
+            "Rules:\n"
+            "- Base the answer only on the provided commute data.\n"
+            "- Mention driving time if it is available.\n"
+            "- Mention weather impact only if it materially affects the commute.\n"
+            "- Do not claim public transport is better unless transit data is provided.\n"
+            "- Keep it concise and practical."
         )
 
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-
-    def _format_route_summary(self, driving_route: dict[str, Any] | None) -> str:
-        if not driving_route:
-            return "Driving route unavailable."
-
-        duration = driving_route.get("duration")
-        distance_meters = driving_route.get("distance_meters")
-        duration_minutes = self._duration_to_minutes(duration)
-
-        if duration_minutes is None or distance_meters is None:
-            return "Driving route data is incomplete."
-
-        distance_km = distance_meters / 1000
-        return f"About {duration_minutes} minutes and {distance_km:.1f} km by car."
-
-    def _format_weather_summary(self, weather: dict[str, Any] | None) -> str:
-        if not weather:
-            return "Weather data unavailable."
-
-        return (
-            f"{weather.get('temperature')}C, feels like {weather.get('feels_like')}C, "
-            f"rain {weather.get('rain')}, precipitation {weather.get('precipitation')}, "
-            f"wind {weather.get('wind_speed')} km/h, weather code {weather.get('weather_code')}."
-        )
 
     def _fallback_recommendation(
         self,

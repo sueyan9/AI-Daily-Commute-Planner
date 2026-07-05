@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from services.auckland_transport import AucklandTransportService
 from services.google_maps import GoogleMapsService
 from services.llm import LLMService
 from services.weather import WeatherService
@@ -12,7 +11,6 @@ from services.weather import WeatherService
 class PlannerService:
     def __init__(self) -> None:
         self.google_maps = GoogleMapsService()
-        self.auckland_transport = AucklandTransportService()
         self.weather = WeatherService()
         self.llm = LLMService()
 
@@ -37,13 +35,11 @@ class PlannerService:
             )
 
         if destination_location:
-            transit_route = self.auckland_transport.get_transit_option(
+            transit_route = self.google_maps.get_transit_route(
                 origin_latitude=latitude,
                 origin_longitude=longitude,
                 destination_latitude=destination_location["latitude"],
                 destination_longitude=destination_location["longitude"],
-                destination_label=destination_location["formatted_address"],
-                arrival_time=arrival_time,
             )
 
         weather = self.weather.get_current_weather(latitude, longitude)

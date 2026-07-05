@@ -16,6 +16,8 @@ def _get_bool(name: str, default: bool = False) -> bool:
 class Settings:
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
     AUCKLAND_TRANSPORT_API_KEY = os.getenv("AUCKLAND_TRANSPORT_API_KEY")
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
     OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")

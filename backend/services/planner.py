@@ -5,6 +5,7 @@ from typing import Any
 
 from services.auckland_transport import AucklandTransportService
 from services.google_maps import GoogleMapsService
+from services.llm import LLMService
 from services.weather import WeatherService
 
 
@@ -13,6 +14,7 @@ class PlannerService:
         self.google_maps = GoogleMapsService()
         self.auckland_transport = AucklandTransportService()
         self.weather = WeatherService()
+        self.llm = LLMService()
 
     def create_commute_plan(
         self,
@@ -59,6 +61,18 @@ class PlannerService:
             arrival_time=arrival_time,
             preference=preference,
         )
+
+        llm_summary = self.llm.generate_commute_recommendation(
+            current_location=current_location,
+            destination=destination,
+            driving_route=driving_route,
+            transit_route=transit_route,
+            weather=weather,
+            recommended_mode=decision["recommended_mode"],
+        )
+        if llm_summary:
+            decision["reason"] = llm_summary
+            decision["summary"] = llm_summary
 
         return {
             "current_location": current_location,

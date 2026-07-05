@@ -11,6 +11,8 @@ from core.config import settings
 class LLMService:
     OPENAI_URL = "https://api.openai.com/v1/chat/completions"
     DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+    ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+    ANTHROPIC_VERSION = "2023-06-01"
 
     def generate_commute_recommendation(
         self,
@@ -18,35 +20,101 @@ class LLMService:
         current_location: str | None,
         destination: str,
         driving_route: dict[str, Any] | None,
+        transit_route: dict[str, Any] | None,
         weather: dict[str, Any] | None,
-    ) -> str:
+        recommended_mode: str,
+    ) -> str | None:
+        """Returns an LLM-phrased recommendation, or None if the LLM is disabled,
+        unconfigured, or the request fails. Callers should fall back to their own
+        rule-based summary in that case, since it already reflects recommended_mode."""
         if not settings.LLM_ENABLED:
-            return self._fallback_recommendation(driving_route, weather)
+            return None
 
-        provider = settings.LLM_PROVIDER
-
-        if provider == "deepseek":
-            api_key = settings.DEEPSEEK_API_KEY
-            model = settings.DEEPSEEK_MODEL
-            base_url = self.DEEPSEEK_URL
-        else:
-            api_key = settings.OPENAI_API_KEY
-            model = settings.OPENAI_MODEL
-            base_url = self.OPENAI_URL
-
-        if not api_key:
-            return self._fallback_recommendation(driving_route, weather)
-
-        messages = self._build_messages(
+        system_prompt, user_prompt = self._build_prompts(
             current_location=current_location,
             destination=destination,
             driving_route=driving_route,
+            transit_route=transit_route,
             weather=weather,
+            recommended_mode=recommended_mode,
         )
+
+        provider = settings.LLM_PROVIDER
+
+        if provider == "anthropic":
+            return self._call_anthropic(system_prompt, user_prompt)
+        elif provider == "deepseek":
+            return self._call_openai_compatible(
+                system_prompt,
+                user_prompt,
+                api_key=settings.DEEPSEEK_API_KEY,
+                model=settings.DEEPSEEK_MODEL,
+                base_url=self.DEEPSEEK_URL,
+            )
+        else:
+            return self._call_openai_compatible(
+                system_prompt,
+                user_prompt,
+                api_key=settings.OPENAI_API_KEY,
+                model=settings.OPENAI_MODEL,
+                base_url=self.OPENAI_URL,
+            )
+
+    def _call_anthropic(self, system_prompt: str, user_prompt: str) -> str | None:
+        api_key = settings.ANTHROPIC_API_KEY
+        if not api_key:
+            return None
+
+        payload = {
+            "model": settings.ANTHROPIC_MODEL,
+            "max_tokens": 300,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_prompt}],
+        }
+
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": self.ANTHROPIC_VERSION,
+            "content-type": "application/json",
+        }
+
+        try:
+            response = requests.post(
+                self.ANTHROPIC_URL,
+                json=payload,
+                headers=headers,
+                timeout=settings.LLM_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+        except requests.RequestException:
+            return None
+
+        data = response.json()
+        blocks = data.get("content") or []
+        text = "".join(
+            block.get("text", "") for block in blocks if block.get("type") == "text"
+        ).strip()
+
+        return text or None
+
+    def _call_openai_compatible(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        api_key: str | None,
+        model: str,
+        base_url: str,
+    ) -> str | None:
+        if not api_key:
+            return None
 
         payload = {
             "model": model,
-            "messages": messages,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             "temperature": 0.3,
         }
 
@@ -64,38 +132,41 @@ class LLMService:
             )
             response.raise_for_status()
         except requests.RequestException:
-            return self._fallback_recommendation(driving_route, weather)
+            return None
 
         data = response.json()
         choices = data.get("choices") or []
         if not choices:
-            return self._fallback_recommendation(driving_route, weather)
+            return None
 
         message = choices[0].get("message") or {}
-        content = (message.get("content") or "").strip()
+        return (message.get("content") or "").strip() or None
 
-        return content or self._fallback_recommendation(driving_route, weather)
-
-    def _build_messages(
+    def _build_prompts(
         self,
         *,
         current_location: str | None,
         destination: str,
         driving_route: dict[str, Any] | None,
+        transit_route: dict[str, Any] | None,
         weather: dict[str, Any] | None,
-    ) -> list[dict[str, str]]:
+        recommended_mode: str,
+    ) -> tuple[str, str]:
         system_prompt = (
             "You are LeaveWise, an AI daily commute assistant. "
-            "Give a short, practical commute recommendation. "
-            "Focus on whether the user should drive today and whether they should leave now or soon. "
-            "Do not mention public transport availability unless transit data is provided. "
-            "Keep the answer under 70 words and avoid technical jargon."
+            "A commute decision has already been made for the user; your job is to explain it in one short, "
+            "practical, friendly message. "
+            "Do not change or contradict the given recommended_mode. "
+            "Do not invent traffic incidents, accidents, or transit delays that are not present in the data. "
+            "Keep the answer under 70 words, avoid technical jargon, and write in plain text with no markdown formatting."
         )
 
         commute_context = {
+            "recommended_mode": recommended_mode,
             "current_location": current_location,
             "destination": destination,
             "driving_route": driving_route,
+            "transit_route": transit_route,
             "weather": weather,
         }
 
@@ -103,50 +174,11 @@ class LLMService:
             "Use the commute data below to write one short recommendation for the user.\n\n"
             f"{json.dumps(commute_context, ensure_ascii=True, indent=2)}\n\n"
             "Rules:\n"
-            "- Base the answer only on the provided commute data.\n"
-            "- Mention driving time if it is available.\n"
+            "- recommended_mode is the final decision; explain it, do not override it.\n"
+            "- If recommended_mode is \"driving\", mention driving time from driving_route when available.\n"
+            "- If recommended_mode is \"transit\", mention the transit departure/travel time from transit_route when available.\n"
             "- Mention weather impact only if it materially affects the commute.\n"
-            "- Do not claim public transport is better unless transit data is provided.\n"
             "- Keep it concise and practical."
         )
 
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
-    def _fallback_recommendation(
-        self,
-        driving_route: dict[str, Any] | None,
-        weather: dict[str, Any] | None,
-    ) -> str:
-        duration_minutes = self._duration_to_minutes(
-            driving_route.get("duration") if driving_route else None
-        )
-        rain = weather.get("rain") if weather else None
-        wind_speed = weather.get("wind_speed") if weather else None
-
-        parts = []
-
-        if duration_minutes is not None:
-            parts.append(f"Driving is estimated to take about {duration_minutes} minutes.")
-
-        if rain and rain > 0:
-            parts.append("There is some rain, so leaving a bit earlier is sensible.")
-        elif wind_speed is not None and wind_speed >= 30:
-            parts.append("It is quite windy, so allow a little extra travel buffer.")
-        elif weather is None:
-            parts.append("Weather data is temporarily unavailable, so this advice is based on route data only.")
-        else:
-            parts.append("Current weather does not show a strong reason to avoid driving.")
-
-        return "Leave now by car. " + " ".join(parts)
-
-    def _duration_to_minutes(self, duration: str | None) -> int | None:
-        if not duration or not duration.endswith("s"):
-            return None
-
-        try:
-            return round(int(duration[:-1]) / 60)
-        except ValueError:
-            return None
+        return system_prompt, user_prompt

@@ -56,6 +56,10 @@ coverage/
 # ==========================================
 
 *.pem
+backend/.cache/
+backend/backend/.cache/
+**/google_calendar_token.json
+**/at_gtfs.zip
 
 AGENTS.md
 CLAUDE.md

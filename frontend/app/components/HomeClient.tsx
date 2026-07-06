@@ -40,6 +40,7 @@ type CommutePlan = {
     } | null;
     weather_notice: string | null;
     recommendation: string | null;
+    routing_basis?: "live" | "predicted";
     decision: {
         recommended_mode: "driving" | "transit";
         recommended_label: string;

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from services.google_maps import GoogleMapsService
 from services.llm import LLMService
@@ -9,6 +10,8 @@ from services.weather import WeatherService
 
 
 class PlannerService:
+    TIMEZONE = ZoneInfo("Pacific/Auckland")
+
     def __init__(self) -> None:
         self.google_maps = GoogleMapsService()
         self.weather = WeatherService()
@@ -41,6 +44,41 @@ class PlannerService:
                 destination_latitude=destination_location["latitude"],
                 destination_longitude=destination_location["longitude"],
             )
+
+        routing_basis = "live"
+
+        if arrival_time:
+            baseline_drive_minutes = self._duration_to_minutes(
+                driving_route.get("duration") if driving_route else None
+            )
+            drive_departure = self._compute_target_departure(arrival_time, baseline_drive_minutes)
+            if drive_departure and current_location:
+                predicted_driving_route = self.google_maps.get_driving_route(
+                    origin=current_location,
+                    destination=destination,
+                    departure_time=drive_departure,
+                )
+                if predicted_driving_route:
+                    driving_route = predicted_driving_route
+                    routing_basis = "predicted"
+
+            baseline_transit_minutes = (
+                transit_route.get("travel_time_minutes")
+                if transit_route and transit_route.get("available")
+                else None
+            )
+            transit_departure = self._compute_target_departure(arrival_time, baseline_transit_minutes)
+            if transit_departure and destination_location:
+                predicted_transit_route = self.google_maps.get_transit_route(
+                    origin_latitude=latitude,
+                    origin_longitude=longitude,
+                    destination_latitude=destination_location["latitude"],
+                    destination_longitude=destination_location["longitude"],
+                    departure_time=transit_departure,
+                )
+                if predicted_transit_route and predicted_transit_route.get("available"):
+                    transit_route = predicted_transit_route
+                    routing_basis = "predicted"
 
         weather = self.weather.get_current_weather(latitude, longitude)
         weather_notice = None
@@ -79,6 +117,7 @@ class PlannerService:
             "weather_notice": weather_notice,
             "recommendation": decision["summary"],
             "decision": decision,
+            "routing_basis": routing_basis,
         }
 
     def _build_decision(
@@ -114,6 +153,7 @@ class PlannerService:
             traffic=traffic,
             weather_summary=weather_summary,
             preference=preference,
+            target_arrival_time=arrival_time,
         )
 
         llm_mode_is_valid = llm_mode is not None and (
@@ -455,6 +495,31 @@ class PlannerService:
 
         leave = arrival - timedelta(minutes=travel_minutes)
         return leave.strftime("%-I:%M %p")
+
+    def _compute_target_departure(
+        self,
+        arrival_time: str | None,
+        estimated_travel_minutes: int | None,
+    ) -> datetime | None:
+        """Turns a target arrival ("09:00") plus a rough travel-time estimate into
+        a concrete future departure datetime, so routes can be queried for that
+        specific future window instead of "right now". If the time has already
+        passed today, assumes tomorrow (handles evening planning for the next
+        morning's commute, e.g. via Calendar auto-fill)."""
+        if not arrival_time or estimated_travel_minutes is None:
+            return None
+
+        try:
+            hours, minutes = [int(part) for part in arrival_time.split(":", maxsplit=1)]
+        except ValueError:
+            return None
+
+        now = datetime.now(self.TIMEZONE)
+        target_arrival = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+        if target_arrival < now:
+            target_arrival += timedelta(days=1)
+
+        return target_arrival - timedelta(minutes=estimated_travel_minutes)
 
     def _format_time(self, value: str | None) -> str | None:
         if not value:

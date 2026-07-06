@@ -4,6 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# backend/ directory, regardless of the process's current working directory
+# (e.g. whether uvicorn was launched from the repo root or from inside backend/).
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
 
 def _get_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -33,7 +37,7 @@ class Settings:
         "https://api.at.govt.nz/realtime/legacy/servicealerts",
     )
     AUCKLAND_TRANSPORT_GTFS_CACHE_PATH = Path(
-        os.getenv("AUCKLAND_TRANSPORT_GTFS_CACHE_PATH", "backend/.cache/at_gtfs.zip")
+        os.getenv("AUCKLAND_TRANSPORT_GTFS_CACHE_PATH", str(BACKEND_DIR / ".cache" / "at_gtfs.zip"))
     )
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").strip().lower()
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -52,7 +56,7 @@ class Settings:
         "GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/calendar/oauth/callback"
     )
     GOOGLE_CALENDAR_TOKEN_PATH = Path(
-        os.getenv("GOOGLE_CALENDAR_TOKEN_PATH", "backend/.cache/google_calendar_token.json")
+        os.getenv("GOOGLE_CALENDAR_TOKEN_PATH", str(BACKEND_DIR / ".cache" / "google_calendar_token.json"))
     )
 
 settings = Settings()

@@ -40,6 +40,7 @@ type CommutePlan = {
     } | null;
     weather_notice: string | null;
     recommendation: string | null;
+    routing_basis?: "live" | "predicted";
     decision: {
         recommended_mode: "driving" | "transit";
         recommended_label: string;
@@ -147,6 +148,12 @@ export default function RecommendationCard({
                           ? "Analyzing live conditions"
                           : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
                 </p>
+
+                {!error && !isLoading && result?.routing_basis === "predicted" && (
+                    <p className="mt-1 text-xs text-[#1c1c2e]/50">
+                        Based on predicted traffic near {leaveTime}, not live conditions.
+                    </p>
+                )}
 
                 <p className="mt-4 border-t border-white/10 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
                     {error

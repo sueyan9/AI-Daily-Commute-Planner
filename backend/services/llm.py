@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 
 from core.config import settings
+
+TIMEZONE = ZoneInfo("Pacific/Auckland")
 
 MODE_TOOL_NAME = "submit_mode"
 VALID_MODES = {"driving", "transit"}
@@ -41,6 +45,7 @@ class LLMService:
         traffic: dict[str, Any],
         weather_summary: dict[str, Any],
         preference: str | None,
+        target_arrival_time: str | None = None,
     ) -> str | None:
         if not settings.LLM_ENABLED:
             return None
@@ -53,6 +58,7 @@ class LLMService:
             traffic=traffic,
             weather_summary=weather_summary,
             preference=preference,
+            target_arrival_time=target_arrival_time,
         )
 
         provider = settings.DECISION_LLM_PROVIDER
@@ -263,17 +269,22 @@ class LLMService:
         traffic: dict[str, Any],
         weather_summary: dict[str, Any],
         preference: str | None,
+        target_arrival_time: str | None,
     ) -> tuple[str, str]:
         system_prompt = (
             "You are the decision agent in LeaveWise, an AI daily commute assistant. "
             "Decide whether the user should drive or take public transport today, using only the data provided, "
             "then call the submit_mode tool with your decision. "
             "If transit_route is not available, you must recommend driving. "
-            "Prefer the option that best matches the user's stated preference when one is given."
+            "Prefer the option that best matches the user's stated preference when one is given. "
+            "If target_arrival_time is given, weigh how much buffer each option leaves against current_time — "
+            "prefer whichever option is less likely to arrive late, even if it contradicts the stated preference."
         )
 
         commute_context = {
             "destination": destination,
+            "current_time": datetime.now(TIMEZONE).strftime("%H:%M"),
+            "target_arrival_time": target_arrival_time,
             "driving_route": driving_route,
             "transit_route": transit_route,
             "weather": weather,

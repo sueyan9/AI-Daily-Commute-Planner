@@ -67,6 +67,7 @@ class GoogleMapsService:
         self,
         origin: str,
         destination: str,
+        departure_time: datetime | None = None,
     ):
         payload = {
             "origin": {
@@ -79,6 +80,9 @@ class GoogleMapsService:
             "routingPreference": "TRAFFIC_AWARE",
             "computeAlternativeRoutes": False,
         }
+
+        if departure_time is not None:
+            payload["departureTime"] = departure_time.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         headers = {
             "Content-Type": "application/json",
@@ -119,7 +123,9 @@ class GoogleMapsService:
         origin_longitude: float,
         destination_latitude: float,
         destination_longitude: float,
+        departure_time: datetime | None = None,
     ):
+        effective_departure = departure_time or datetime.now(ZoneInfo("UTC"))
         payload = {
             "origin": {
                 "location": {"latLng": {"latitude": origin_latitude, "longitude": origin_longitude}},
@@ -128,7 +134,7 @@ class GoogleMapsService:
                 "location": {"latLng": {"latitude": destination_latitude, "longitude": destination_longitude}},
             },
             "travelMode": "TRANSIT",
-            "departureTime": datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "departureTime": effective_departure.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "transitPreferences": {"routingPreference": "FEWER_TRANSFERS"},
         }
 

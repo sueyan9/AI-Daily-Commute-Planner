@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef } from "react";
-
 type Weather = {
     rain: number | null;
     wind_speed: number | null;
@@ -11,7 +9,6 @@ type Weather = {
 type Props = {
     imageUrl: string | null;
     weather: Weather;
-    onUploadImage: (file: File) => void;
 };
 
 const FOG_WEATHER_CODES = new Set([45, 48]);
@@ -70,8 +67,7 @@ function getMood(weather: Weather) {
     };
 }
 
-export default function BackgroundScene({ imageUrl, weather, onUploadImage }: Props) {
-    const fileInputRef = useRef<HTMLInputElement>(null);
+export default function BackgroundScene({ imageUrl, weather }: Props) {
     const mood = getMood(weather);
     const displayImageSrc = imageUrl ?? mood.autoImageSrc;
 
@@ -85,26 +81,6 @@ export default function BackgroundScene({ imageUrl, weather, onUploadImage }: Pr
             {mood.isRaining && (
                 <div className="rain-layer pointer-events-none absolute inset-0 opacity-60" />
             )}
-
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                        onUploadImage(file);
-                    }
-                }}
-            />
-            <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-5 right-5 rounded-full border border-white/30 bg-black/20 px-4 py-2 text-xs font-medium text-white backdrop-blur-md transition hover:bg-black/35"
-            >
-                Change background
-            </button>
         </div>
     );
 }

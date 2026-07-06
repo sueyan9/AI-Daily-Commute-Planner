@@ -126,9 +126,9 @@ export default function RecommendationCard({
             : undefined;
 
     return (
-        <div className="flex w-full max-w-4xl flex-col gap-3">
+        <div className="flex w-full max-w-2xl flex-col gap-3">
             {/* Hero */}
-            <div className="rounded-[28px] border border-white/15  from-white/8 to-transparent p-6 shadow-lg backdrop-blur-sm">
+            <div className="rounded-[28px] border border-white/15 bg-gradient-to-r from-white/8 to-transparent p-6 shadow-lg backdrop-blur-sm">
                 <p className="ui-label text-[#1c1c2e]/60">Ai recommendation</p>
 
                 <p className="mt-3 ui-label text-[#1c1c2e]/60">Leave at</p>

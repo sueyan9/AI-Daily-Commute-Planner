@@ -3,6 +3,7 @@
 import BackgroundScene from "./BackgroundScene";
 import CommuteToolbar from "./CommuteToolbar";
 import RecommendationCard from "./RecommendationCard";
+import SettingsMenu from "./SettingsMenu";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useEffect, useRef, useState } from "react";
 
@@ -199,11 +200,8 @@ export default function HomeClient() {
 
     return (
         <main className="relative min-h-screen overflow-hidden">
-            <BackgroundScene
-                imageUrl={backgroundImageUrl}
-                weather={result?.weather ?? null}
-                onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))}
-            />
+            <BackgroundScene imageUrl={backgroundImageUrl} weather={result?.weather ?? null} />
+            <SettingsMenu onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))} />
 
             <div className="relative z-10 flex min-h-screen flex-col gap-6 px-4 pb-6 pt-8 md:px-10 md:pb-8 md:pt-12">
                 <div className="flex justify-center">

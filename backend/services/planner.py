@@ -58,7 +58,7 @@ class PlannerService:
             preference=preference,
         )
 
-        llm_summary = self.llm.generate_commute_recommendation(
+        narration = self.llm.narrate_recommendation(
             current_location=current_location,
             destination=destination,
             driving_route=driving_route,
@@ -66,9 +66,9 @@ class PlannerService:
             weather=weather,
             recommended_mode=decision["recommended_mode"],
         )
-        if llm_summary:
-            decision["reason"] = llm_summary
-            decision["summary"] = llm_summary
+        if narration:
+            decision["reason"] = narration
+            decision["summary"] = narration
 
         return {
             "current_location": current_location,
@@ -106,12 +106,29 @@ class PlannerService:
             if transit_route and transit_route.get("available")
             else None
         )
-        recommended_mode = self._choose_mode(
-            drive_minutes=drive_minutes,
-            traffic_level=traffic["level"],
+        llm_mode = self.llm.decide_mode(
+            destination=destination,
+            driving_route=driving_route,
             transit_route=transit_route,
+            weather=weather,
+            traffic=traffic,
+            weather_summary=weather_summary,
             preference=preference,
         )
+
+        llm_mode_is_valid = llm_mode is not None and (
+            llm_mode == "driving" or bool(transit_route and transit_route.get("available"))
+        )
+
+        if llm_mode_is_valid:
+            recommended_mode = llm_mode
+        else:
+            recommended_mode = self._choose_mode(
+                drive_minutes=drive_minutes,
+                traffic_level=traffic["level"],
+                transit_route=transit_route,
+                preference=preference,
+            )
         recommended_label = "Public transport" if recommended_mode == "transit" else "Drive"
         recommended_icon = "🚌" if recommended_mode == "transit" else "🚗"
         recommended_leave_time = (
@@ -178,10 +195,7 @@ class PlannerService:
             drive_minutes=drive_minutes,
             transit_route=transit_route,
         )
-
-        summary = headline
-        if reason:
-            summary = f"{headline} {reason}"
+        summary = f"{headline} {reason}" if reason else headline
 
         highlights = self._build_highlights(
             drive_minutes=drive_minutes,

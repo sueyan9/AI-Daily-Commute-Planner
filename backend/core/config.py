@@ -41,4 +41,9 @@ class Settings:
     LLM_TIMEOUT_SECONDS = float(os.getenv("LLM_TIMEOUT_SECONDS", "20"))
     LLM_ENABLED = _get_bool("LLM_ENABLED", True)
 
+    # Per-task model routing: each "agent" (decision vs. narration) can be pinned
+    # to its own provider, independent of the general LLM_PROVIDER default.
+    DECISION_LLM_PROVIDER = (os.getenv("DECISION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
+    NARRATION_LLM_PROVIDER = (os.getenv("NARRATION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
+
 settings = Settings()

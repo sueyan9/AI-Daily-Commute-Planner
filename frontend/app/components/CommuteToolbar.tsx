@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSavedLocations } from "../hooks/useSavedLocations";
 
 type Props = {
@@ -14,6 +14,19 @@ type Props = {
     isLoading: boolean;
 };
 
+type MenuKey = "location" | "time" | "preference" | null;
+
+const PREFERENCE_OPTIONS = ["Fastest route", "Fewer transfers", "Less walking"];
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+
+const DROPDOWN_PANEL =
+    "absolute left-0 top-full z-20 mt-2 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-xl";
+const DROPDOWN_TRIGGER_MOBILE =
+    "flex w-full items-center justify-between gap-1.5 rounded-2xl border border-white/40 bg-white/40 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg backdrop-blur-xl transition hover:bg-white/60";
+const DROPDOWN_TRIGGER_DESKTOP =
+    "md:w-auto md:justify-start md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none";
+
 export default function CommuteToolbar({
     destination,
     arrivalTime,
@@ -25,16 +38,33 @@ export default function CommuteToolbar({
     isLoading,
 }: Props) {
     const { locations, addLocation, removeLocation } = useSavedLocations();
-    const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false);
+    const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
     const [isAddingLocation, setIsAddingLocation] = useState(false);
     const [newLabel, setNewLabel] = useState("");
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setActiveMenu(null);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const toggleMenu = (menu: MenuKey) => {
+        setActiveMenu((current) => (current === menu ? null : menu));
+    };
 
     const activeLocation = locations.find((location) => location.address === destination);
     const locationLabel = activeLocation?.label ?? (destination || "Destination");
+    const [hourPart, minutePart] = (arrivalTime || "09:00").split(":");
 
     const handleSelectLocation = (address: string) => {
         onDestinationChange(address);
-        setIsLocationMenuOpen(false);
+        setActiveMenu(null);
     };
 
     const handleSaveLocation = () => {
@@ -49,7 +79,7 @@ export default function CommuteToolbar({
     };
 
     return (
-        <div className="w-full max-w-4xl space-y-3">
+        <div ref={containerRef} className="relative z-30 w-full max-w-4xl space-y-3">
             <div className="flex items-center gap-3 rounded-full border border-white/40 bg-white/40 px-5 py-3 shadow-lg backdrop-blur-xl">
                 <input
                     type="text"
@@ -77,8 +107,8 @@ export default function CommuteToolbar({
                 <div className="relative">
                     <button
                         type="button"
-                        onClick={() => setIsLocationMenuOpen((value) => !value)}
-                        className="flex w-full items-center justify-between gap-1.5 rounded-2xl border border-white/40 bg-white/40 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg backdrop-blur-xl transition hover:bg-white/60 md:w-auto md:justify-start md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none"
+                        onClick={() => toggleMenu("location")}
+                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
                     >
                         <span className="flex items-center gap-1.5">
                             <HomeIcon />
@@ -87,8 +117,8 @@ export default function CommuteToolbar({
                         <span className="text-xs text-[#1c1c2e]/60">▾</span>
                     </button>
 
-                    {isLocationMenuOpen && (
-                        <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-xl">
+                    {activeMenu === "location" && (
+                        <div className={`${DROPDOWN_PANEL} w-64`}>
                             {locations.map((location) => (
                                 <div
                                     key={location.id}
@@ -144,28 +174,94 @@ export default function CommuteToolbar({
 
                 <div className="hidden h-5 w-px bg-black/10 md:block" />
 
-                <div className="flex items-center gap-1.5 rounded-2xl border border-white/40 bg-white/40 px-4 py-3 shadow-lg backdrop-blur-xl md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none">
-                    <ClockIcon />
-                    <span className="text-sm font-medium text-[#1c1c2e]">Arrive by</span>
-                    <input
-                        type="time"
-                        value={arrivalTime}
-                        onChange={(event) => onArrivalTimeChange(event.target.value)}
-                        className="ml-auto rounded-md bg-transparent text-sm font-medium text-[#1c1c2e] outline-none md:ml-0"
-                    />
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => toggleMenu("time")}
+                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
+                    >
+                        <span className="flex items-center gap-1.5">
+                            <ClockIcon />
+                            <span>Arrive by {hourPart}:{minutePart}</span>
+                        </span>
+                        <span className="text-xs text-[#1c1c2e]/60">▾</span>
+                    </button>
+
+                    {activeMenu === "time" && (
+                        <div className={`${DROPDOWN_PANEL} flex w-40 gap-2`}>
+                            <div className="max-h-52 flex-1 overflow-y-auto">
+                                {HOURS.map((hour) => (
+                                    <button
+                                        key={hour}
+                                        type="button"
+                                        onClick={() => onArrivalTimeChange(`${hour}:${minutePart}`)}
+                                        className={`w-full rounded-lg px-3 py-1.5 text-left text-sm ${
+                                            hour === hourPart
+                                                ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
+                                                : "text-[#1c1c2e] hover:bg-black/5"
+                                        }`}
+                                    >
+                                        {hour}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="max-h-52 flex-1 overflow-y-auto">
+                                {MINUTES.map((minute) => (
+                                    <button
+                                        key={minute}
+                                        type="button"
+                                        onClick={() => {
+                                            onArrivalTimeChange(`${hourPart}:${minute}`);
+                                            setActiveMenu(null);
+                                        }}
+                                        className={`w-full rounded-lg px-3 py-1.5 text-left text-sm ${
+                                            minute === minutePart
+                                                ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
+                                                : "text-[#1c1c2e] hover:bg-black/5"
+                                        }`}
+                                    >
+                                        {minute}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="hidden h-5 w-px bg-black/10 md:block" />
 
-                <select
-                    value={preference}
-                    onChange={(event) => onPreferenceChange(event.target.value)}
-                    className="w-full rounded-2xl border border-white/40 bg-white/40 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg outline-none backdrop-blur-xl md:w-auto md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none"
-                >
-                    <option>Fastest route</option>
-                    <option>Fewer transfers</option>
-                    <option>Less walking</option>
-                </select>
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => toggleMenu("preference")}
+                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
+                    >
+                        <span>{preference}</span>
+                        <span className="text-xs text-[#1c1c2e]/60">▾</span>
+                    </button>
+
+                    {activeMenu === "preference" && (
+                        <div className={`${DROPDOWN_PANEL} w-48`}>
+                            {PREFERENCE_OPTIONS.map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => {
+                                        onPreferenceChange(option);
+                                        setActiveMenu(null);
+                                    }}
+                                    className={`w-full rounded-xl px-3 py-2 text-left text-sm ${
+                                        option === preference
+                                            ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
+                                            : "text-[#1c1c2e] hover:bg-black/5"
+                                    }`}
+                                >
+                                    {option}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <button
                     onClick={onPlan}

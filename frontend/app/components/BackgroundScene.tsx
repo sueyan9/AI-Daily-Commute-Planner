@@ -24,9 +24,8 @@ function getMood(weather: Weather) {
     if (isNight) {
         return {
             isRaining,
-            autoImageSrc: weather ? (isRough ? "/Cloudy_Auckland.png" : "/Sunny_Auckland.png") : null,
+            autoImageSrc: isRough ? "/Cloudy_Auckland.png" : "/Sunny_Auckland.png",
             overlay: "linear-gradient(180deg, rgba(10,14,35,0.55) 0%, rgba(10,14,35,0.75) 100%)",
-            fallbackGradient: "linear-gradient(160deg, #0f1530 0%, #1c2240 55%, #2b2f52 100%)",
         };
     }
 
@@ -35,7 +34,6 @@ function getMood(weather: Weather) {
             isRaining,
             autoImageSrc: "/Cloudy_Auckland.png",
             overlay: "linear-gradient(180deg, rgba(60,70,90,0.35) 0%, rgba(40,48,65,0.55) 100%)",
-            fallbackGradient: "linear-gradient(160deg, #7c8aa0 0%, #5b6579 55%, #454d60 100%)",
         };
     }
 
@@ -44,15 +42,13 @@ function getMood(weather: Weather) {
             isRaining,
             autoImageSrc: "/Cloudy_Auckland.png",
             overlay: "linear-gradient(180deg, rgba(120,140,160,0.2) 0%, rgba(90,105,125,0.4) 100%)",
-            fallbackGradient: "linear-gradient(160deg, #a9c0d6 0%, #7f97ad 55%, #5f7488 100%)",
         };
     }
 
     return {
         isRaining,
-        autoImageSrc: weather ? "/Sunny_Auckland.png" : null,
+        autoImageSrc: "/Sunny_Auckland.png",
         overlay: "linear-gradient(180deg, rgba(255,214,150,0.15) 0%, rgba(120,110,150,0.35) 100%)",
-        fallbackGradient: "linear-gradient(160deg, #ffd8a8 0%, #f3a9e0 55%, #7c6fae 100%)",
     };
 }
 
@@ -63,12 +59,8 @@ export default function BackgroundScene({ imageUrl, weather, onUploadImage }: Pr
 
     return (
         <div className="fixed inset-0 -z-10 overflow-hidden">
-            {displayImageSrc ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={displayImageSrc} alt="" className="h-full w-full object-cover" />
-            ) : (
-                <div className="h-full w-full" style={{ background: mood.fallbackGradient }} />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={displayImageSrc} alt="" className="h-full w-full object-cover" />
 
             <div className="absolute inset-0" style={{ background: mood.overlay }} />
 

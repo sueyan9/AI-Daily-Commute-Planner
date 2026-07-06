@@ -42,3 +42,24 @@ body {
 .ui-rule {
   border-color: var(--line);
 }
+
+@keyframes rain-fall {
+  0% {
+    background-position: 0 -100px;
+  }
+  100% {
+    background-position: -40px 500px;
+  }
+}
+
+.rain-layer {
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0,
+    transparent 6px,
+    rgba(255, 255, 255, 0.35) 7px,
+    transparent 9px
+  );
+  background-size: 60px 220px;
+  animation: rain-fall 0.45s linear infinite;
+}

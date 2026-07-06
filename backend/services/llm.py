@@ -154,11 +154,12 @@ class LLMService:
     ) -> tuple[str, str]:
         system_prompt = (
             "You are LeaveWise, an AI daily commute assistant. "
-            "A commute decision has already been made for the user; your job is to explain it in one short, "
-            "practical, friendly message. "
+            "A commute decision has already been made for the user; your job is to explain it in a single, "
+            "punchy sentence, like a weather-app headline, not a paragraph. "
             "Do not change or contradict the given recommended_mode. "
             "Do not invent traffic incidents, accidents, or transit delays that are not present in the data. "
-            "Keep the answer under 70 words, avoid technical jargon, and write in plain text with no markdown formatting."
+            "Respond with exactly one short sentence, at most 20 words, no greeting, no sign-off, "
+            "avoid technical jargon, and write in plain text with no markdown formatting."
         )
 
         commute_context = {
@@ -178,7 +179,7 @@ class LLMService:
             "- If recommended_mode is \"driving\", mention driving time from driving_route when available.\n"
             "- If recommended_mode is \"transit\", mention the transit departure/travel time from transit_route when available.\n"
             "- Mention weather impact only if it materially affects the commute.\n"
-            "- Keep it concise and practical."
+            "- One sentence only, at most 20 words."
         )
 
         return system_prompt, user_prompt

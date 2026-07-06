@@ -1,9 +1,10 @@
 "use client";
 
-import CommuteForm from "./CommuteForm";
+import BackgroundScene from "./BackgroundScene";
+import CommuteToolbar from "./CommuteToolbar";
 import RecommendationCard from "./RecommendationCard";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type CommutePlan = {
     current_location: string | null;
@@ -85,14 +86,55 @@ type CommutePlan = {
     } | null;
 };
 
+type StoredPlan = {
+    destination: string;
+    arrivalTime: string;
+    preference: string;
+};
+
+const LAST_PLAN_KEY = "leavewise:last-plan";
+
+function formatRelativeTime(date: Date | null): string | null {
+    if (!date) {
+        return null;
+    }
+
+    const minutesAgo = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (minutesAgo <= 0) {
+        return "Last updated just now";
+    }
+    if (minutesAgo === 1) {
+        return "Last updated 1 min ago";
+    }
+
+    return `Last updated ${minutesAgo} min ago`;
+}
+
+function readStoredPlan(): StoredPlan | null {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    try {
+        const raw = window.localStorage.getItem(LAST_PLAN_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
 export default function HomeClient() {
     const { location, error } = useGeolocation();
     const [result, setResult] = useState<CommutePlan | null>(null);
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [destination, setDestination] = useState("Auckland CBD");
-    const [arrivalTime, setArrivalTime] = useState("");
-    const [preference, setPreference] = useState("Fastest route");
+    const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
+    const storedPlan = useMemo(() => readStoredPlan(), []);
+    const [destination, setDestination] = useState(storedPlan?.destination ?? "Auckland CBD");
+    const [arrivalTime, setArrivalTime] = useState(storedPlan?.arrivalTime ?? "");
+    const [preference, setPreference] = useState(storedPlan?.preference ?? "Fastest route");
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+    const hasAutoPlannedRef = useRef(false);
 
     const handlePlanCommute = async () => {
         if (!location) {
@@ -124,6 +166,11 @@ export default function HomeClient() {
 
             const data: CommutePlan = await response.json();
             setResult(data);
+            setLastUpdatedAt(new Date());
+            window.localStorage.setItem(
+                LAST_PLAN_KEY,
+                JSON.stringify({ destination, arrivalTime, preference })
+            );
         } catch {
             setRequestError("Unable to load the latest commute recommendation.");
         } finally {
@@ -131,13 +178,25 @@ export default function HomeClient() {
         }
     };
 
+    useEffect(() => {
+        if (location && storedPlan && !result && !isLoading && !hasAutoPlannedRef.current) {
+            hasAutoPlannedRef.current = true;
+            handlePlanCommute();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location, storedPlan, result, isLoading]);
+
     return (
-        <main className="min-h-screen bg-[var(--background)] px-4 py-6 text-[var(--foreground)] md:px-6 md:py-8">
-            <section className="mx-auto max-w-7xl">
-                <div className="overflow-hidden rounded-[32px] border border-[var(--line)] bg-[var(--panel)] shadow-[0_12px_40px_rgba(28,28,46,0.05)]">
-                    <div className="grid lg:grid-cols-[360px_1fr]">
-                    <CommuteForm
-                        currentLocation={result?.current_location ?? "Detecting your location..."}
+        <main className="relative min-h-screen overflow-hidden">
+            <BackgroundScene
+                imageUrl={backgroundImageUrl}
+                weather={result?.weather ?? null}
+                onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))}
+            />
+
+            <div className="relative z-10 flex min-h-screen flex-col gap-6 px-4 pb-6 pt-8 md:px-10 md:pb-8 md:pt-12">
+                <div className="flex justify-center">
+                    <CommuteToolbar
                         destination={destination}
                         arrivalTime={arrivalTime}
                         preference={preference}
@@ -146,17 +205,25 @@ export default function HomeClient() {
                         onPreferenceChange={setPreference}
                         onPlan={handlePlanCommute}
                         isLoading={isLoading}
-                        locationError={error}
                     />
+                </div>
+
+                {error && (
+                    <div className="w-full max-w-2xl rounded-2xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 backdrop-blur">
+                        {error}
+                    </div>
+                )}
+
+                <div className="flex flex-1 flex-col items-center justify-end gap-6 lg:justify-start">
                     <RecommendationCard
                         result={result}
                         isLoading={isLoading}
                         error={requestError}
                         arrivalTime={arrivalTime}
+                        lastUpdatedLabel={formatRelativeTime(lastUpdatedAt)}
                     />
-                    </div>
                 </div>
-            </section>
+            </div>
         </main>
     );
 }

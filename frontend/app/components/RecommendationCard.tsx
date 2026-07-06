@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 
 type DecisionFactor = {
     type: string;
@@ -20,6 +22,7 @@ type CommutePlan = {
         departure_time?: string | null;
         arrival_time?: string | null;
         travel_time_minutes?: number | null;
+        transfers?: number | null;
         next_departures?: Array<{
             time: string;
             scheduled_time?: string | null;
@@ -91,6 +94,7 @@ type Props = {
     isLoading: boolean;
     error: string | null;
     arrivalTime: string;
+    lastUpdatedLabel?: string | null;
 };
 
 export default function RecommendationCard({
@@ -98,7 +102,9 @@ export default function RecommendationCard({
     isLoading,
     error,
     arrivalTime,
+    lastUpdatedLabel,
 }: Props) {
+    const [isWhyOpen, setIsWhyOpen] = useState(false);
     const decision = result?.decision;
     const factors = decision?.decision_factors ?? getFallbackFactors(result);
     const comparison = decision?.comparison;
@@ -106,285 +112,177 @@ export default function RecommendationCard({
         decision?.leave_time ??
         getFallbackLeaveTime(arrivalTime, result?.driving_route?.duration) ??
         getCurrentTimeDisplay();
-    const arriveTime = decision?.arrival_time ?? formatTime(arrivalTime) ?? "--";
     const driveMinutes =
         comparison?.driving.travel_time_minutes ?? getDriveMinutes(result?.driving_route?.duration);
     const recommendedMode = decision?.recommended_mode ?? comparison?.recommended_mode ?? "driving";
-    const trafficStatus =
-        decision?.traffic?.tag ??
-        getTrafficFallback(result?.driving_route?.duration, result?.driving_route?.static_duration);
     const transitMinutes = comparison?.transit.travel_time_minutes ?? result?.transit_route?.travel_time_minutes;
-    const transitHeadline =
-        comparison?.transit.route_label ?? result?.transit_route?.route_label ?? "Public transport";
-    const nextTransitTimes = (comparison?.transit.next_departures ?? result?.transit_route?.next_departures ?? [])
-        .map((departure) => departure.time)
-        .slice(0, 3)
-        .join(" · ");
-    const transitStatus = comparison?.transit.available
-        ? `${transitHeadline}${nextTransitTimes ? ` · ${nextTransitTimes}` : ""}`
-        : comparison?.transit.status ?? "Transit routing is not connected yet.";
+    const transitAvailable = comparison?.transit.available ?? false;
+    const transitTransfers = result?.transit_route?.transfers;
+    const transitTransferLabel =
+        typeof transitTransfers === "number"
+            ? transitTransfers === 0
+                ? "No transfers needed"
+                : `${transitTransfers} transfer${transitTransfers > 1 ? "s" : ""}`
+            : undefined;
 
     return (
-        <section className="p-6 md:p-8">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <p className="ui-label">Ai recommendation</p>
-                    <h2 className="mt-3 text-[1.65rem] font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-                        Leave at a glance
-                    </h2>
+        <div className="flex w-full max-w-4xl flex-col gap-3">
+            {/* Hero */}
+            <div className="rounded-[28px] border border-white/40 bg-white/55 p-6 shadow-2xl backdrop-blur-2xl">
+                <p className="ui-label text-[#1c1c2e]/60">Ai recommendation</p>
+
+                <p className="mt-3 ui-label text-[#1c1c2e]/60">Leave at</p>
+                <div className="mt-1 flex items-end gap-2 text-[3.2rem] font-semibold leading-none tracking-[-0.05em] text-[#1c1c2e]">
+                    <span>{error ? "--" : isLoading ? "..." : getTimeParts(leaveTime).time}</span>
+                    <span className="pb-1 text-[0.3em] tracking-[-0.03em] text-[#1c1c2e]/80">
+                        {error ? "" : isLoading ? "" : getTimeParts(leaveTime).period}
+                    </span>
                 </div>
-                <StatusBadge
-                    label={error ? "Service issue" : isLoading ? "Refreshing" : "Confidence 92%"}
-                    tone={error ? "warning" : "normal"}
+
+                <p className="mt-2 flex items-center gap-2 text-[1.05rem] font-medium text-[var(--accent)]">
+                    {recommendedMode === "transit" ? <TransitIcon /> : <CarIcon />}
+                    {error
+                        ? "Recommendation unavailable"
+                        : isLoading
+                          ? "Analyzing live conditions"
+                          : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
+                </p>
+
+                <p className="mt-4 border-t border-white/40 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
+                    {error
+                        ? error
+                        : isLoading
+                          ? "Checking traffic, timing, and weather to decide the cleanest departure window."
+                          : decision?.reason ??
+                            result?.recommendation ??
+                            "A live recommendation will appear here after the route and weather data load."}
+                </p>
+
+                <div className="mt-3 flex justify-center border-t border-white/30 pt-3">
+                    {!error && !isLoading && (
+                        <span className="rounded-full border border-white/50 bg-white/60 px-3 py-1 text-xs font-medium text-[#1c1c2e]/70">
+                            Confidence 92%
+                        </span>
+                    )}
+                    {(error || isLoading) && (
+                        <StatusBadge label={error ? "Service issue" : "Refreshing"} tone={error ? "warning" : "normal"} />
+                    )}
+                </div>
+            </div>
+
+            {/* Comparison */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <CompareCard
+                    icon={<CarIcon />}
+                    label={comparison?.driving.label ?? "Drive"}
+                    minutes={driveMinutes}
+                    tag={recommendedMode === "driving" ? "Recommended" : `Leave ${comparison?.driving.leave_time ?? leaveTime}`}
+                    isRecommended={recommendedMode === "driving"}
+                />
+                <CompareCard
+                    icon={<TransitIcon />}
+                    label={comparison?.transit.route_label ?? comparison?.transit.label ?? "Public transport"}
+                    minutes={transitAvailable ? transitMinutes ?? null : null}
+                    tag={
+                        recommendedMode === "transit"
+                            ? "Recommended"
+                            : transitAvailable
+                              ? transitTransferLabel ?? "Available"
+                              : comparison?.transit.status ?? "Not available"
+                    }
+                    isRecommended={recommendedMode === "transit"}
+                    isUnavailable={!transitAvailable}
                 />
             </div>
 
-            <div className="ui-rule mt-8 border rounded-[28px] bg-[var(--panel-strong)] p-6 md:p-8">
-                <div className="grid gap-8 xl:grid-cols-[1.3fr_0.8fr] xl:items-start">
-                    <div>
-                        <p className="ui-label">Leave at</p>
-                        <div className="mt-3 flex items-end gap-3 text-[clamp(4.6rem,10vw,7.2rem)] font-semibold leading-none tracking-[-0.08em] text-[var(--foreground)]">
-                            <span>{error ? "--" : isLoading ? "..." : getTimeParts(leaveTime).time}</span>
-                            <span className="pb-3 text-[0.3em] tracking-[-0.04em] text-[var(--foreground)]/90">
-                                {error ? "" : isLoading ? "" : getTimeParts(leaveTime).period}
-                            </span>
-                        </div>
-                        <p className="mt-4 text-[1.35rem] font-medium tracking-[-0.03em] text-[var(--accent)]">
-                            {error
-                                ? "Recommendation unavailable"
-                                : isLoading
-                                  ? "Analyzing live conditions"
-                                  : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
-                        </p>
-                        <p className="mt-3 max-w-xl text-[15px] leading-7 text-[var(--muted)]">
-                            {error
-                                ? error
-                                : isLoading
-                                  ? "Checking traffic, timing, and weather to decide the cleanest departure window."
-                                  : decision?.reason ??
-                                    result?.recommendation ??
-                                    "A live recommendation will appear here after the route and weather data load."}
-                        </p>
-                    </div>
+            {/* Why this recommendation (collapsed on mobile, always open on desktop) */}
+            <div className="rounded-[24px] border border-white/40 bg-white/45 p-5 shadow-lg backdrop-blur-2xl">
+                <button
+                    type="button"
+                    onClick={() => setIsWhyOpen((value) => !value)}
+                    className="flex w-full items-center justify-between text-left"
+                >
+                    <p className="ui-label text-[#1c1c2e]/60">Why this recommendation</p>
+                    <span className="text-[#1c1c2e]/50 md:hidden">{isWhyOpen ? "▲" : "▼"}</span>
+                </button>
 
-                    <div className="ui-rule border-t pt-6 xl:border-t-0 xl:border-l xl:pl-8 xl:pt-0">
-                        <p className="ui-label">Arrive by</p>
-                        <p className="mt-4 text-[clamp(2.4rem,4vw,3.4rem)] font-semibold tracking-[-0.06em] text-[var(--foreground)]">
-                            {error ? "--" : isLoading ? "Checking" : arriveTime}
-                        </p>
-                        <div className="mt-8 space-y-4">
-                            <KeyValue
-                                icon={<RouteIcon />}
-                                label="Recommended"
-                                value={decision?.recommended_label ?? "Drive"}
-                            />
-                            <KeyValue
-                                icon={<ClockIcon />}
-                                label="Travel time"
-                                value={driveMinutes ? `${driveMinutes} min` : "Pending"}
-                            />
-                            <KeyValue
-                                icon={<TrafficIcon />}
-                                label="Traffic"
-                                value={trafficStatus}
-                            />
-                            <KeyValue
-                                icon={<WeatherIcon />}
-                                label="Conditions"
-                                value={result?.weather_notice ?? "Current weather clear enough to travel"}
-                            />
-                        </div>
-                    </div>
+                <div className={`mt-4 space-y-4 ${isWhyOpen ? "" : "hidden"} md:!block`}>
+                    {factors.map((factor) => (
+                        <ReasonRow key={`${factor.type}-${factor.message}`} factor={factor} />
+                    ))}
                 </div>
             </div>
 
-            <section className="mt-10">
-                <div className="flex items-center justify-between">
-                    <p className="ui-label">{comparison?.title ?? "Today's options"}</p>
-                    <p className="text-sm text-[var(--muted)]">Preferred mode highlighted in violet</p>
-                </div>
-
-                <div className="ui-rule mt-4 overflow-hidden rounded-[24px] border bg-[var(--panel-strong)]">
-                    <OptionRow
-                        icon={<CarIcon />}
-                        label={comparison?.driving.label ?? "Drive"}
-                        travelTime={driveMinutes ? `${driveMinutes} min` : "--"}
-                        leaveValue={comparison?.driving.leave_time ?? leaveTime}
-                        arriveValue={comparison?.driving.arrival_time ?? arriveTime}
-                        isRecommended={recommendedMode === "driving"}
-                    />
-                    <OptionRow
-                        icon={<TransitIcon />}
-                        label={comparison?.transit.route_label ?? comparison?.transit.label ?? "Public transport"}
-                        travelTime={comparison?.transit.available ? `${transitMinutes ?? "--"} min` : "--"}
-                        leaveValue={
-                            comparison?.transit.available
-                                ? comparison?.transit.departure_time ?? transitStatus ?? "Live"
-                                : transitStatus ?? "Pending"
-                        }
-                        arriveValue={
-                            comparison?.transit.available
-                                ? comparison?.transit.arrival_time ?? "Live"
-                                : "Not ready"
-                        }
-                        isRecommended={recommendedMode === "transit"}
-                        condensedStatus={!comparison?.transit.available}
-                        note={
-                            comparison?.transit.available
-                                ? comparison?.transit.status
-                                : undefined
-                        }
-                    />
-                </div>
-            </section>
-
-            <section className="mt-10">
-                <p className="ui-label">Why this recommendation</p>
-                <div className="ui-rule mt-4 grid overflow-hidden rounded-[24px] border bg-[var(--panel-strong)] md:grid-cols-3">
-                    {factors.map((factor, index) => (
-                        <ReasonColumn
-                            key={`${factor.type}-${factor.message}`}
-                            factor={factor}
-                            withDivider={index < factors.length - 1}
-                        />
-                    ))}
-                </div>
-            </section>
-        </section>
+            {/* Footer */}
+            <div className="flex items-center justify-between px-1 text-xs text-white/80">
+                <span>{lastUpdatedLabel ?? "Not planned yet"}</span>
+                <span>Data from Google Maps and Open-Meteo</span>
+            </div>
+        </div>
     );
 }
 
-function StatusBadge({
-    label,
-    tone,
-}: {
-    label: string;
-    tone: "normal" | "warning";
-}) {
+function StatusBadge({ label, tone }: { label: string; tone: "normal" | "warning" }) {
     return (
         <span
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium ${
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
                 tone === "warning"
                     ? "border-rose-200 bg-rose-50 text-rose-700"
-                    : "border-[var(--line)] bg-[var(--panel-strong)] text-[var(--foreground)]"
+                    : "border-white/50 bg-white/60 text-[#1c1c2e]"
             }`}
         >
-            <span
-                className={`h-2.5 w-2.5 rounded-full ${
-                    tone === "warning" ? "bg-rose-500" : "bg-emerald-500"
-                }`}
-            />
+            <span className={`h-2 w-2 rounded-full ${tone === "warning" ? "bg-rose-500" : "bg-emerald-500"}`} />
             {label}
         </span>
     );
 }
 
-function KeyValue({
+function CompareCard({
     icon,
     label,
-    value,
+    minutes,
+    tag,
+    isRecommended,
+    isUnavailable = false,
 }: {
     icon: ReactNode;
     label: string;
-    value: string;
+    minutes: number | null;
+    tag: string;
+    isRecommended: boolean;
+    isUnavailable?: boolean;
 }) {
+    return (
+        <div
+            className={`rounded-[22px] border p-5 backdrop-blur-2xl ${
+                isRecommended
+                    ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]/70 shadow-xl"
+                    : "border-white/40 bg-white/50 shadow-lg"
+            }`}
+        >
+            <div className="text-[#1c1c2e]/70">{icon}</div>
+            <p className="mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] text-[#1c1c2e]">
+                {isUnavailable ? "--" : minutes ?? "--"}
+                {!isUnavailable && minutes !== null && (
+                    <span className="text-[0.4em] font-medium text-[#1c1c2e]/60">min</span>
+                )}
+            </p>
+            <p className="mt-2 text-sm font-medium text-[#1c1c2e]">{label}</p>
+            <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : "text-[#1c1c2e]/55"}`}>{tag}</p>
+        </div>
+    );
+}
+
+function ReasonRow({ factor }: { factor: DecisionFactor }) {
+    const icon = getFactorIcon(factor.type);
+
     return (
         <div className="flex items-start gap-3">
             <span className="mt-0.5 text-[var(--accent)]">{icon}</span>
             <div>
-                <p className="ui-label">{label}</p>
-                <p className="mt-2 text-[15px] leading-6 text-[var(--foreground)]">{value}</p>
+                <p className="text-sm font-medium capitalize text-[#1c1c2e]">{factor.type}</p>
+                <p className="text-xs leading-5 text-[#1c1c2e]/65">{factor.message}</p>
             </div>
-        </div>
-    );
-}
-
-function OptionRow({
-    icon,
-    label,
-    travelTime,
-    leaveValue,
-    arriveValue,
-    isRecommended,
-    condensedStatus = false,
-    note,
-}: {
-    icon: ReactNode;
-    label: string;
-    travelTime: string;
-    leaveValue: string;
-    arriveValue: string;
-    isRecommended: boolean;
-    condensedStatus?: boolean;
-    note?: string;
-}) {
-    return (
-        <div
-            className={`grid gap-4 border-b border-[var(--line)] px-5 py-5 last:border-b-0 md:grid-cols-[minmax(0,1.3fr)_120px_minmax(0,1fr)_160px] md:items-center ${
-                isRecommended ? "bg-[var(--accent-soft)]/45" : "bg-[var(--panel-strong)]"
-            }`}
-        >
-            <div className="flex items-center gap-3">
-                <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border ${
-                        isRecommended
-                            ? "border-[var(--accent)]/20 bg-[var(--accent-soft)] text-[var(--accent)]"
-                            : "border-[var(--line)] bg-[var(--background)] text-[var(--muted)]"
-                    }`}
-                >
-                    {icon}
-                </span>
-                <div>
-                    <p className="text-lg font-medium tracking-[-0.03em] text-[var(--foreground)]">{label}</p>
-                    {isRecommended && <p className="mt-1 text-sm text-[var(--accent)]">Recommended now</p>}
-                    {note && <p className="mt-1 text-sm text-[var(--muted)]">{note}</p>}
-                </div>
-            </div>
-            <div>
-                <p className="ui-label">Duration</p>
-                <p className="mt-2 text-[15px] font-medium text-[var(--foreground)]">{travelTime}</p>
-            </div>
-            <div>
-                <p className="ui-label">Leave</p>
-                <p className="mt-2 text-[15px] leading-6 text-[var(--muted)]">
-                    {condensedStatus ? leaveValue : leaveValue || "--"}
-                </p>
-            </div>
-            <div>
-                <p className="ui-label">Arrive</p>
-                <p className="mt-2 text-[15px] leading-6 text-[var(--muted)]">{arriveValue || "--"}</p>
-            </div>
-        </div>
-    );
-}
-
-function ReasonColumn({
-    factor,
-    withDivider,
-}: {
-    factor: DecisionFactor;
-    withDivider: boolean;
-}) {
-    const icon = getFactorIcon(factor.type);
-    const emphasis =
-        factor.importance === "high"
-            ? "High priority"
-            : factor.importance === "medium"
-              ? "Monitored"
-              : "Supporting";
-
-    return (
-        <div
-            className={`p-5 md:p-6 ${
-                withDivider ? "border-b border-[var(--line)] md:border-r md:border-b-0" : ""
-            }`}
-        >
-            <span className="text-[var(--accent)]">{icon}</span>
-            <p className="mt-4 ui-label">{factor.type}</p>
-            <p className="mt-3 text-[17px] font-medium tracking-[-0.02em] text-[var(--foreground)]">
-                {emphasis}
-            </p>
-            <p className="mt-3 text-[15px] leading-7 text-[var(--muted)]">{factor.message}</p>
         </div>
     );
 }
@@ -414,10 +312,7 @@ function getDriveMinutes(duration: string | undefined): number | null {
     return Math.round(seconds / 60);
 }
 
-function getFallbackLeaveTime(
-    arrivalTime: string,
-    driveDuration: string | undefined
-): string | null {
+function getFallbackLeaveTime(arrivalTime: string, driveDuration: string | undefined): string | null {
     const driveMinutes = getDriveMinutes(driveDuration);
     if (!driveMinutes) {
         return null;
@@ -433,9 +328,7 @@ function getFallbackLeaveTime(
     const outputHours = Math.floor(normalizedMinutes / 60);
     const outputMinutes = normalizedMinutes % 60;
 
-    return formatTime(
-        `${String(outputHours).padStart(2, "0")}:${String(outputMinutes).padStart(2, "0")}`
-    );
+    return formatTime(`${String(outputHours).padStart(2, "0")}:${String(outputMinutes).padStart(2, "0")}`);
 }
 
 function formatTime(value: string): string | null {
@@ -461,31 +354,6 @@ function getCurrentTimeDisplay(): string {
     const normalizedHours = hours % 12 || 12;
 
     return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${period}`;
-}
-
-function getTrafficFallback(
-    duration: string | undefined,
-    staticDuration: string | null | undefined
-): string {
-    const liveMinutes = getDriveMinutes(duration);
-    const staticMinutes = getDriveMinutes(staticDuration ?? undefined);
-
-    if (!liveMinutes || !staticMinutes || staticMinutes <= 0) {
-        return "Live traffic included";
-    }
-
-    const deltaMinutes = liveMinutes - staticMinutes;
-    const deltaRatio = deltaMinutes / staticMinutes;
-
-    if (deltaMinutes >= 10 || deltaRatio >= 0.35) {
-        return "Heavy traffic";
-    }
-
-    if (deltaMinutes >= 5 || deltaRatio >= 0.15) {
-        return "Moderate traffic";
-    }
-
-    return "Normal traffic";
 }
 
 function getTimeParts(value: string) {
@@ -543,7 +411,7 @@ function SvgShell({ children }: { children: ReactNode }) {
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-5 w-5"
+            className="h-4 w-4"
             aria-hidden="true"
         >
             {children}
@@ -588,15 +456,6 @@ function RouteIcon() {
     );
 }
 
-function ClockIcon() {
-    return (
-        <SvgShell>
-            <circle cx="12" cy="12" r="8" />
-            <path d="M12 7.5v5l3 1.8" />
-        </SvgShell>
-    );
-}
-
 function WeatherIcon() {
     return (
         <SvgShell>
@@ -609,19 +468,6 @@ function WeatherIcon() {
             <path d="M16.1 16.1l1.6 1.6" />
             <path d="M17.7 6.3l-1.6 1.6" />
             <path d="M7.9 16.1l-1.6 1.6" />
-        </SvgShell>
-    );
-}
-
-function TrafficIcon() {
-    return (
-        <SvgShell>
-            <path d="M4 16h16" />
-            <path d="M7 12h10" />
-            <path d="M10 8h4" />
-            <circle cx="7" cy="16.5" r="1.2" />
-            <circle cx="12" cy="12.5" r="1.2" />
-            <circle cx="17" cy="16.5" r="1.2" />
         </SvgShell>
     );
 }

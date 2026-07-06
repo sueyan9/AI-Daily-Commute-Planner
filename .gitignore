@@ -16,7 +16,7 @@ frontend/.env.production
 # ==========================================
 
 backend/.venv/
-backend/__pycache__/
+backend/**/__pycache__/
 backend/.env
 backend/.cache/
 

@@ -46,4 +46,13 @@ class Settings:
     DECISION_LLM_PROVIDER = (os.getenv("DECISION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
     NARRATION_LLM_PROVIDER = (os.getenv("NARRATION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
 
+    GOOGLE_CALENDAR_CLIENT_ID = os.getenv("GOOGLE_CALENDAR_CLIENT_ID")
+    GOOGLE_CALENDAR_CLIENT_SECRET = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET")
+    GOOGLE_CALENDAR_REDIRECT_URI = os.getenv(
+        "GOOGLE_CALENDAR_REDIRECT_URI", "http://localhost:8000/calendar/oauth/callback"
+    )
+    GOOGLE_CALENDAR_TOKEN_PATH = Path(
+        os.getenv("GOOGLE_CALENDAR_TOKEN_PATH", "backend/.cache/google_calendar_token.json")
+    )
+
 settings = Settings()

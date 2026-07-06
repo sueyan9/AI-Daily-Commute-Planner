@@ -4,9 +4,17 @@ import { useEffect, useRef, useState } from "react";
 
 type Props = {
     onUploadImage: (file: File) => void;
+    isCalendarConnected: boolean;
+    onConnectCalendar: () => void;
+    onDisconnectCalendar: () => void;
 };
 
-export default function SettingsMenu({ onUploadImage }: Props) {
+export default function SettingsMenu({
+    onUploadImage,
+    isCalendarConnected,
+    onConnectCalendar,
+    onDisconnectCalendar,
+}: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +42,7 @@ export default function SettingsMenu({ onUploadImage }: Props) {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-md">
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-md">
                     <button
                         type="button"
                         onClick={() => {
@@ -44,6 +52,20 @@ export default function SettingsMenu({ onUploadImage }: Props) {
                         className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[#1c1c2e] hover:bg-black/5"
                     >
                         Change background
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (isCalendarConnected) {
+                                onDisconnectCalendar();
+                            } else {
+                                onConnectCalendar();
+                            }
+                            setIsOpen(false);
+                        }}
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-[#1c1c2e] hover:bg-black/5"
+                    >
+                        {isCalendarConnected ? "Disconnect Google Calendar" : "Connect Google Calendar"}
                     </button>
                 </div>
             )}

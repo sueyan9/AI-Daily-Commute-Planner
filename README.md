@@ -174,8 +174,8 @@ Commute Plan JSON → UI
 
 # 💡 Project Goal
 
-LeaveWise demonstrates an Agentic AI architecture for daily commuting decisions.
+LeaveWise uses a lightweight multi-agent workflow:
 
-Multiple specialised AI agents independently retrieve live data from external services—including Google Maps, weather forecasts, public transport, and personal schedules—and collaborate to determine the optimal travel strategy.
-
-A reasoning agent then evaluates the collected evidence and generates a grounded recommendation with transparent explanations instead of hallucinating an answer.
+- A Data Agent gathers and normalises live traffic, transit, and weather data.
+- A Decision Agent evaluates the structured data and selects the best commute option.
+- A Narration Agent explains the recommendation in clear, human-friendly language.

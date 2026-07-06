@@ -5,6 +5,7 @@ import CommuteToolbar from "./CommuteToolbar";
 import RecommendationCard from "./RecommendationCard";
 import SettingsMenu from "./SettingsMenu";
 import { useGeolocation } from "../hooks/useGeolocation";
+import { useGoogleCalendar } from "../hooks/useGoogleCalendar";
 import { useEffect, useRef, useState } from "react";
 
 type CommutePlan = {
@@ -126,6 +127,13 @@ function readStoredPlan(): StoredPlan | null {
 
 export default function HomeClient() {
     const { location, error } = useGeolocation();
+    const {
+        isConnected: isCalendarConnected,
+        nextEvent,
+        suggestedArrivalTime,
+        connect: connectCalendar,
+        disconnect: disconnectCalendar,
+    } = useGoogleCalendar();
     const [result, setResult] = useState<CommutePlan | null>(null);
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -136,6 +144,14 @@ export default function HomeClient() {
     const [hasStoredPlan, setHasStoredPlan] = useState(false);
     const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const hasAutoPlannedRef = useRef(false);
+    const hasAppliedCalendarTimeRef = useRef(false);
+
+    useEffect(() => {
+        if (suggestedArrivalTime && !hasAppliedCalendarTimeRef.current) {
+            hasAppliedCalendarTimeRef.current = true;
+            setArrivalTime(suggestedArrivalTime);
+        }
+    }, [suggestedArrivalTime]);
 
     useEffect(() => {
         const stored = readStoredPlan();
@@ -201,10 +217,15 @@ export default function HomeClient() {
     return (
         <main className="relative min-h-screen overflow-hidden">
             <BackgroundScene imageUrl={backgroundImageUrl} weather={result?.weather ?? null} />
-            <SettingsMenu onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))} />
+            <SettingsMenu
+                onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))}
+                isCalendarConnected={isCalendarConnected}
+                onConnectCalendar={connectCalendar}
+                onDisconnectCalendar={disconnectCalendar}
+            />
 
             <div className="relative z-10 flex min-h-screen flex-col gap-6 px-4 pb-6 pt-8 md:px-10 md:pb-8 md:pt-12">
-                <div className="flex justify-center">
+                <div className="flex flex-col items-center gap-2">
                     <CommuteToolbar
                         destination={destination}
                         arrivalTime={arrivalTime}
@@ -215,6 +236,11 @@ export default function HomeClient() {
                         onPlan={handlePlanCommute}
                         isLoading={isLoading}
                     />
+                    {nextEvent && (
+                        <p className="text-xs text-white/80">
+                            📅 Next: {nextEvent.summary} · Arrive by {arrivalTime}
+                        </p>
+                    )}
                 </div>
 
                 {error && (

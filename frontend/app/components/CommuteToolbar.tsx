@@ -21,9 +21,9 @@ const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
 
 const DROPDOWN_PANEL =
-    "absolute left-0 top-full z-20 mt-2 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-xl";
+    "absolute left-0 top-full z-20 mt-2 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-md";
 const DROPDOWN_TRIGGER_MOBILE =
-    "flex w-full items-center justify-between gap-1.5 rounded-2xl border border-white/50 bg-white/20 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg backdrop-blur-xl transition hover:bg-white/35";
+    "flex w-full items-center justify-between gap-1.5 rounded-2xl border border-white/50 bg-white/20 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg backdrop-blur-md transition hover:bg-white/35";
 const DROPDOWN_TRIGGER_DESKTOP =
     "md:w-auto md:justify-start md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none";
 
@@ -80,7 +80,7 @@ export default function CommuteToolbar({
 
     return (
         <div ref={containerRef} className="relative z-30 w-full max-w-4xl space-y-3">
-            <div className="flex items-center gap-3 rounded-full border border-white/50 bg-white/20 px-5 py-3 shadow-lg backdrop-blur-xl">
+            <div className="flex items-center gap-3 rounded-full border border-white/50 bg-white/20 px-5 py-3 shadow-lg backdrop-blur-md">
                 <input
                     type="text"
                     value={destination}
@@ -103,7 +103,7 @@ export default function CommuteToolbar({
                 </button>
             </div>
 
-            <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-1 md:rounded-full md:border md:border-white/50 md:bg-white/20 md:px-2 md:py-1.5 md:shadow-lg md:backdrop-blur-xl">
+            <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-1 md:rounded-full md:border md:border-white/50 md:bg-white/20 md:px-2 md:py-1.5 md:shadow-lg md:backdrop-blur-md">
                 <div className="relative">
                     <button
                         type="button"

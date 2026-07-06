@@ -128,7 +128,7 @@ export default function RecommendationCard({
     return (
         <div className="flex w-full max-w-4xl flex-col gap-3">
             {/* Hero */}
-            <div className="rounded-[28px] border border-white/50 bg-gradient-to-r from-white/30 via-white/15 to-white/5 p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="rounded-[28px] border border-white/15  from-white/8 to-transparent p-6 shadow-lg backdrop-blur-sm">
                 <p className="ui-label text-[#1c1c2e]/60">Ai recommendation</p>
 
                 <p className="mt-3 ui-label text-[#1c1c2e]/60">Leave at</p>
@@ -148,7 +148,7 @@ export default function RecommendationCard({
                           : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
                 </p>
 
-                <p className="mt-4 border-t border-white/40 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
+                <p className="mt-4 border-t border-white/10 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
                     {error
                         ? error
                         : isLoading
@@ -160,7 +160,7 @@ export default function RecommendationCard({
 
                 <div className="mt-3 flex justify-center border-t border-white/30 pt-3">
                     {!error && !isLoading && (
-                        <span className="rounded-full border border-white/50 bg-white/30 px-3 py-1 text-xs font-medium text-[#1c1c2e]/80">
+                        <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-medium text-[#1c1c2e]/80">
                             Confidence 92%
                         </span>
                     )}
@@ -196,7 +196,7 @@ export default function RecommendationCard({
             </div>
 
             {/* Why this recommendation (collapsed on mobile, always open on desktop) */}
-            <div className="rounded-[24px] border border-white/50 bg-gradient-to-r from-white/30 via-white/15 to-white/5 p-5 shadow-lg backdrop-blur-2xl">
+            <div className="rounded-[24px] border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent p-5 shadow-none backdrop-blur-sm">
                 <button
                     type="button"
                     onClick={() => setIsWhyOpen((value) => !value)}
@@ -254,10 +254,10 @@ function CompareCard({
 }) {
     return (
         <div
-            className={`rounded-[22px] border bg-gradient-to-r p-5 backdrop-blur-2xl ${
+            className={`rounded-[22px] border bg-gradient-to-r p-5 backdrop-blur-sm ${
                 isRecommended
                     ? "border-[var(--accent)]/50 from-[var(--accent-soft)]/45 via-[var(--accent-soft)]/20 to-[var(--accent-soft)]/5 shadow-xl"
-                    : "border-white/50 from-white/30 via-white/15 to-white/5 shadow-lg"
+                    : "border-white/20 from-white/10 via-white/5 to-transparent shadow-md"
             }`}
         >
             <div className="text-[#1c1c2e]/70">{icon}</div>

@@ -128,7 +128,7 @@ export default function RecommendationCard({
     return (
         <div className="flex w-full max-w-4xl flex-col gap-3">
             {/* Hero */}
-            <div className="rounded-[28px] border border-white/40 bg-white/55 p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="rounded-[28px] border border-white/50 bg-gradient-to-r from-white/30 via-white/15 to-white/5 p-6 shadow-2xl backdrop-blur-2xl">
                 <p className="ui-label text-[#1c1c2e]/60">Ai recommendation</p>
 
                 <p className="mt-3 ui-label text-[#1c1c2e]/60">Leave at</p>
@@ -160,7 +160,7 @@ export default function RecommendationCard({
 
                 <div className="mt-3 flex justify-center border-t border-white/30 pt-3">
                     {!error && !isLoading && (
-                        <span className="rounded-full border border-white/50 bg-white/60 px-3 py-1 text-xs font-medium text-[#1c1c2e]/70">
+                        <span className="rounded-full border border-white/50 bg-white/30 px-3 py-1 text-xs font-medium text-[#1c1c2e]/80">
                             Confidence 92%
                         </span>
                     )}
@@ -196,7 +196,7 @@ export default function RecommendationCard({
             </div>
 
             {/* Why this recommendation (collapsed on mobile, always open on desktop) */}
-            <div className="rounded-[24px] border border-white/40 bg-white/45 p-5 shadow-lg backdrop-blur-2xl">
+            <div className="rounded-[24px] border border-white/50 bg-gradient-to-r from-white/30 via-white/15 to-white/5 p-5 shadow-lg backdrop-blur-2xl">
                 <button
                     type="button"
                     onClick={() => setIsWhyOpen((value) => !value)}
@@ -254,10 +254,10 @@ function CompareCard({
 }) {
     return (
         <div
-            className={`rounded-[22px] border p-5 backdrop-blur-2xl ${
+            className={`rounded-[22px] border bg-gradient-to-r p-5 backdrop-blur-2xl ${
                 isRecommended
-                    ? "border-[var(--accent)]/40 bg-[var(--accent-soft)]/70 shadow-xl"
-                    : "border-white/40 bg-white/50 shadow-lg"
+                    ? "border-[var(--accent)]/50 from-[var(--accent-soft)]/45 via-[var(--accent-soft)]/20 to-[var(--accent-soft)]/5 shadow-xl"
+                    : "border-white/50 from-white/30 via-white/15 to-white/5 shadow-lg"
             }`}
         >
             <div className="text-[#1c1c2e]/70">{icon}</div>

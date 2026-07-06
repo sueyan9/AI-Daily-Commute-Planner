@@ -4,7 +4,7 @@ import BackgroundScene from "./BackgroundScene";
 import CommuteToolbar from "./CommuteToolbar";
 import RecommendationCard from "./RecommendationCard";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type CommutePlan = {
     current_location: string | null;
@@ -129,12 +129,23 @@ export default function HomeClient() {
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
-    const storedPlan = useMemo(() => readStoredPlan(), []);
-    const [destination, setDestination] = useState(storedPlan?.destination ?? "Auckland CBD");
-    const [arrivalTime, setArrivalTime] = useState(storedPlan?.arrivalTime ?? "");
-    const [preference, setPreference] = useState(storedPlan?.preference ?? "Fastest route");
+    const [destination, setDestination] = useState("Auckland CBD");
+    const [arrivalTime, setArrivalTime] = useState("");
+    const [preference, setPreference] = useState("Fastest route");
+    const [hasStoredPlan, setHasStoredPlan] = useState(false);
     const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const hasAutoPlannedRef = useRef(false);
+
+    useEffect(() => {
+        const stored = readStoredPlan();
+        if (stored) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from localStorage after hydration
+            setDestination(stored.destination);
+            setArrivalTime(stored.arrivalTime);
+            setPreference(stored.preference);
+            setHasStoredPlan(true);
+        }
+    }, []);
 
     const handlePlanCommute = async () => {
         if (!location) {
@@ -179,12 +190,12 @@ export default function HomeClient() {
     };
 
     useEffect(() => {
-        if (location && storedPlan && !result && !isLoading && !hasAutoPlannedRef.current) {
+        if (location && hasStoredPlan && !result && !isLoading && !hasAutoPlannedRef.current) {
             hasAutoPlannedRef.current = true;
             handlePlanCommute();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [location, storedPlan, result, isLoading]);
+    }, [location, hasStoredPlan, result, isLoading]);
 
     return (
         <main className="relative min-h-screen overflow-hidden">

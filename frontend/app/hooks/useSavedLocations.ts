@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type SavedLocation = {
     id: string;
@@ -23,7 +23,15 @@ function readStoredLocations(): SavedLocation[] {
 }
 
 export function useSavedLocations() {
-    const [locations, setLocations] = useState<SavedLocation[]>(readStoredLocations);
+    const [locations, setLocations] = useState<SavedLocation[]>([]);
+
+    useEffect(() => {
+        const stored = readStoredLocations();
+        if (stored.length > 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync from localStorage after hydration
+            setLocations(stored);
+        }
+    }, []);
 
     const persist = (next: SavedLocation[]) => {
         setLocations(next);

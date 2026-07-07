@@ -234,10 +234,7 @@ For the first version, build only:
 
 Do not add yet:
 
-- Real Google Maps API
-- Auckland Transport API
 - Login
 - Database
-- Calendar integration
-- Real AI agent
+
 

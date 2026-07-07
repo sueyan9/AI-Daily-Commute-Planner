@@ -61,7 +61,7 @@ Retrieves current temperature, rain, and wind from Open-Meteo (no API key requir
 
 ---
 
-### ✅ AI Recommendation (Claude)
+### ✅ AI Recommendation (Claude/Deep seek/Open AI )
 
 A rule-based decision engine picks the recommended mode (drive vs. transit), the best leave time, and classifies traffic/weather severity from the real data above. Claude (`claude-haiku-4-5`) then explains that decision in a single, practical sentence — it explains the decision that's already been made, it doesn't get to override it, and it's instructed never to invent traffic incidents or delays that aren't in the data.
 

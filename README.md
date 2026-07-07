@@ -142,6 +142,27 @@ Commute Plan JSON → UI
 
 ---
 
+# 🧪 Testing
+
+End-to-end tests live in `frontend/tests/` (Playwright):
+
+- **`homepage.spec.ts`** — the destination search and Plan button render on load
+- **`geolocation.spec.ts`** — mocks the browser Geolocation permission, then asserts clicking Plan does *not* trigger the "current location is not available yet" alert (tests the actual behavior, not just the absence of an error string)
+- **`commute-flow.spec.ts`** — the full flow: enter a destination, click Plan, the AI recommendation renders. The `/commute/plan` network call is mocked with a response shaped exactly like the real backend's JSON, so this test needs no live backend, API keys, or network access to run
+
+Run locally:
+
+```bash
+cd frontend
+npx playwright test
+```
+
+`playwright.config.ts` has a `webServer` entry that starts the frontend dev server automatically if one isn't already running, so this works standalone — verified by stopping the local dev server entirely and confirming Playwright starts its own and all tests still pass.
+
+**CI**: [`.github/workflows/e2e-tests.yml`](.github/workflows/e2e-tests.yml) runs the full suite on every push and pull request to `master`/`main`, and uploads the HTML test report as a build artifact so a failure can be inspected without re-running locally.
+
+---
+
 # 📅 Development Progress
 
 ## ✅ Completed
@@ -158,6 +179,7 @@ Commute Plan JSON → UI
 - [x] AI-generated recommendation explanation (Claude, with OpenAI/DeepSeek as swappable providers)
 - [x] Weather- and time-of-day-reactive background scene
 - [x] Saved locations + returning-user auto-plan
+- [x] End-to-end tests (Playwright) + CI on every push/PR
 
 ---
 

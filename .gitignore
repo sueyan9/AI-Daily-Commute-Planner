@@ -63,3 +63,5 @@ backend/backend/.cache/
 
 AGENTS.md
 CLAUDE.md
+.claude/
+.idea/

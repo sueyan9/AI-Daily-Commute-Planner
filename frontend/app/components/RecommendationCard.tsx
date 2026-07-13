@@ -95,6 +95,7 @@ type Props = {
     isLoading: boolean;
     error: string | null;
     arrivalTime: string;
+    isNight: boolean;
     lastUpdatedAt?: Date | null;
     lastUpdatedLabel?: string | null;
     onRefresh: () => void;
@@ -106,6 +107,7 @@ export default function RecommendationCard({
     isLoading,
     error,
     arrivalTime,
+    isNight,
     lastUpdatedAt,
     lastUpdatedLabel,
     onRefresh,
@@ -143,6 +145,13 @@ export default function RecommendationCard({
         "Pending";
     const leaveDeltaLabel = getLeaveDeltaLabel(leaveTime);
     const updateState = getUpdateState(lastUpdatedAt);
+    const panelClass = isNight
+        ? "border-white/12 bg-gradient-to-r from-slate-950/38 via-slate-950/22 to-slate-900/12"
+        : "border-white/15 bg-gradient-to-r from-white/8 to-transparent";
+    const textPrimaryClass = isNight ? "text-white" : "text-[#1c1c2e]";
+    const textSecondaryClass = isNight ? "text-white/74" : "text-[#1c1c2e]/75";
+    const textMutedClass = isNight ? "text-white/58" : "text-[#1c1c2e]/60";
+    const borderSoftClass = isNight ? "border-white/12" : "border-white/10";
 
     const handleReminder = async () => {
         const delayMs = getMsUntilTime(leaveTime);
@@ -178,13 +187,13 @@ export default function RecommendationCard({
     return (
         <div className="flex w-full max-w-2xl flex-col gap-3">
             {/* Hero */}
-            <div className="rounded-[28px] border border-white/15 bg-gradient-to-r from-white/8 to-transparent p-6 shadow-lg backdrop-blur-sm">
-                <p className="ui-label text-[#1c1c2e]/60">Ai recommendation</p>
+            <div className={`rounded-[28px] border p-6 shadow-lg backdrop-blur-sm ${panelClass}`}>
+                <p className={`ui-label ${textMutedClass}`}>Ai recommendation</p>
 
-                <p className="mt-3 ui-label text-[#1c1c2e]/60">Leave at</p>
-                <div className="mt-1 flex items-end gap-2 text-[3.2rem] font-semibold leading-none tracking-[-0.05em] text-[#1c1c2e]">
+                <p className={`mt-3 ui-label ${textMutedClass}`}>Leave at</p>
+                <div className={`mt-1 flex items-end gap-2 text-[3.2rem] font-semibold leading-none tracking-[-0.05em] ${textPrimaryClass}`}>
                     <span>{error ? "--" : isLoading ? "..." : getTimeParts(leaveTime).time}</span>
-                    <span className="pb-1 text-[0.3em] tracking-[-0.03em] text-[#1c1c2e]/80">
+                    <span className={`pb-1 text-[0.3em] tracking-[-0.03em] ${isNight ? "text-white/82" : "text-[#1c1c2e]/80"}`}>
                         {error ? "" : isLoading ? "" : getTimeParts(leaveTime).period}
                     </span>
                 </div>
@@ -200,8 +209,8 @@ export default function RecommendationCard({
 
                 {!error && !isLoading && (
                     <div className="mt-4 grid grid-cols-1 gap-3 rounded-[22px] border border-white/10 bg-white/6 p-4 md:grid-cols-3">
-                        <MetaStat label="Arrive by" value={arrivalDisplay} />
-                        <MetaStat label="Leave in" value={leaveDeltaLabel} />
+                        <MetaStat label="Arrive by" value={arrivalDisplay} isNight={isNight} />
+                        <MetaStat label="Leave in" value={leaveDeltaLabel} isNight={isNight} />
                         <MetaStat
                             label={recommendedMode === "transit" ? "Transit line" : "Travel time"}
                             value={
@@ -211,11 +220,12 @@ export default function RecommendationCard({
                                       ? `${recommendedTravelMinutes} min`
                                       : "Pending"
                             }
+                            isNight={isNight}
                         />
                     </div>
                 )}
 
-                <p className="mt-4 border-t border-white/10 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
+                <p className={`mt-4 border-t pt-3 text-[14px] leading-6 ${borderSoftClass} ${textSecondaryClass}`}>
                     {error
                         ? error
                         : isLoading
@@ -225,7 +235,7 @@ export default function RecommendationCard({
                             "A live recommendation will appear here after the route and weather data load."}
                 </p>
 
-                <div className="mt-3 flex flex-col gap-3 border-t border-white/30 pt-3">
+                <div className={`mt-3 flex flex-col gap-3 border-t pt-3 ${isNight ? "border-white/16" : "border-white/30"}`}>
                     {(error || isLoading) && (
                         <StatusBadge label={error ? "Service issue" : "Refreshing"} tone={error ? "warning" : "normal"} />
                     )}
@@ -235,7 +245,11 @@ export default function RecommendationCard({
                             <button
                                 type="button"
                                 onClick={onRefresh}
-                                className="inline-flex items-center gap-2 self-start rounded-full border border-white/30 bg-white/12 px-3 py-1.5 text-xs font-medium text-[#1c1c2e] transition hover:bg-white/20"
+                                className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                                    isNight
+                                        ? "border-white/16 bg-white/8 text-white hover:bg-white/12"
+                                        : "border-white/30 bg-white/12 text-[#1c1c2e] hover:bg-white/20"
+                                }`}
                             >
                                 <RefreshIcon />
                                 Refresh now
@@ -252,11 +266,11 @@ export default function RecommendationCard({
                                 <BellIcon />
                                 Remind me to leave
                             </button>
-                            {reminderState && <p className="text-xs text-[#1c1c2e]/55">{reminderState}</p>}
+                            {reminderState && <p className={`text-xs ${isNight ? "text-white/60" : "text-[#1c1c2e]/55"}`}>{reminderState}</p>}
                         </div>
                     )}
                     {!error && !isLoading && result?.routing_basis === "predicted" && (
-                        <p className="text-xs text-[#1c1c2e]/45">
+                        <p className={`text-xs ${isNight ? "text-white/42" : "text-[#1c1c2e]/45"}`}>
                             Based on predicted traffic near {leaveTime}, not live conditions.
                         </p>
                     )}
@@ -272,6 +286,7 @@ export default function RecommendationCard({
                     arrivalTime={comparison?.driving.arrival_time ?? formatTime(arrivalTime)}
                     tag={recommendedMode === "driving" ? "Recommended" : `Leave ${comparison?.driving.leave_time ?? leaveTime}`}
                     isRecommended={recommendedMode === "driving"}
+                    isNight={isNight}
                     actionLabel={recommendedMode === "driving" ? "Current best option" : "Choose drive instead"}
                     onSelect={() => onApplyMode("driving")}
                 />
@@ -289,6 +304,7 @@ export default function RecommendationCard({
                     }
                     isRecommended={recommendedMode === "transit"}
                     isUnavailable={!transitAvailable}
+                    isNight={isNight}
                     actionLabel={
                         recommendedMode === "transit"
                             ? "Current best option"
@@ -301,25 +317,31 @@ export default function RecommendationCard({
             </div>
 
             {/* Why this recommendation */}
-            <div className="rounded-[24px] border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent p-5 shadow-none backdrop-blur-sm">
-                <button
+            <div
+                className={`rounded-[24px] border bg-gradient-to-r p-5 shadow-none backdrop-blur-sm ${
+                    isNight
+                        ? "border-white/12 from-slate-950/34 via-slate-950/18 to-slate-900/8"
+                        : "border-white/10 from-white/10 via-white/5 to-transparent"
+                }`}
+            >
+                    <button
                     type="button"
                     onClick={() => setIsWhyOpen((value) => !value)}
                     className="flex w-full items-center justify-between text-left"
                 >
-                    <p className="ui-label text-[#1c1c2e]/60">Why this recommendation</p>
-                    <span className="text-[#1c1c2e]/50">{isWhyOpen ? "▲" : "▼"}</span>
+                    <p className={`ui-label ${textMutedClass}`}>Why this recommendation</p>
+                    <span className={isNight ? "text-white/50" : "text-[#1c1c2e]/50"}>{isWhyOpen ? "▲" : "▼"}</span>
                 </button>
 
                 <div className={`mt-4 space-y-4 ${isWhyOpen ? "" : "hidden"}`}>
                     {factors.map((factor) => (
-                        <ReasonRow key={`${factor.type}-${factor.message}`} factor={factor} />
+                        <ReasonRow key={`${factor.type}-${factor.message}`} factor={factor} isNight={isNight} />
                     ))}
                 </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-1 text-xs text-white/80">
+            <div className={`flex items-center justify-between px-1 text-xs ${isNight ? "text-white/76" : "text-white/80"}`}>
                 <span>{lastUpdatedLabel ?? "Not planned yet"}</span>
                 <span>Data from Google Maps and Open-Meteo</span>
             </div>
@@ -342,11 +364,11 @@ function StatusBadge({ label, tone }: { label: string; tone: "normal" | "warning
     );
 }
 
-function MetaStat({ label, value }: { label: string; value: string }) {
+function MetaStat({ label, value, isNight }: { label: string; value: string; isNight: boolean }) {
     return (
         <div>
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#1c1c2e]/45">{label}</p>
-            <p className="mt-1 text-sm font-medium text-[#1c1c2e]">{value}</p>
+            <p className={`text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${isNight ? "text-white/42" : "text-[#1c1c2e]/45"}`}>{label}</p>
+            <p className={`mt-1 text-sm font-medium ${isNight ? "text-white" : "text-[#1c1c2e]"}`}>{value}</p>
         </div>
     );
 }
@@ -359,6 +381,7 @@ function CompareCard({
     tag,
     isRecommended,
     isUnavailable = false,
+    isNight,
     actionLabel,
     onSelect,
 }: {
@@ -369,6 +392,7 @@ function CompareCard({
     tag: string;
     isRecommended: boolean;
     isUnavailable?: boolean;
+    isNight: boolean;
     actionLabel: string;
     onSelect?: () => void;
 }) {
@@ -380,33 +404,35 @@ function CompareCard({
             className={`rounded-[22px] border bg-gradient-to-r p-5 backdrop-blur-sm ${
                 isRecommended
                     ? "border-[var(--accent)]/50 from-[var(--accent-soft)]/45 via-[var(--accent-soft)]/20 to-[var(--accent-soft)]/5 shadow-xl"
-                    : "border-white/20 from-white/10 via-white/5 to-transparent shadow-md"
+                    : isNight
+                      ? "border-white/16 from-slate-950/30 via-slate-950/16 to-slate-900/8 shadow-md"
+                      : "border-white/20 from-white/10 via-white/5 to-transparent shadow-md"
             } ${onSelect ? "cursor-pointer transition hover:-translate-y-0.5 hover:bg-white/10" : "cursor-default opacity-70"}`}
         >
-            <div className="text-[#1c1c2e]/80">{icon}</div>
-            <p className="mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] text-[#141427]">
+            <div className={isNight ? "text-white/78" : "text-[#1c1c2e]/80"}>{icon}</div>
+            <p className={`mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] ${isNight ? "text-white" : "text-[#141427]"}`}>
                 {isUnavailable ? "--" : minutes ?? "--"}
                 {!isUnavailable && minutes !== null && (
-                    <span className="text-[0.4em] font-medium text-[#1c1c2e]/70">min</span>
+                    <span className={`text-[0.4em] font-medium ${isNight ? "text-white/72" : "text-[#1c1c2e]/70"}`}>min</span>
                 )}
             </p>
-            <p className="mt-2 text-sm font-semibold text-[#141427]">{label}</p>
-            <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : "text-[#1c1c2e]/70"}`}>{tag}</p>
-            <p className="mt-3 text-xs text-[#1c1c2e]/72">{arrivalTime ? `Arrive by ${arrivalTime}` : "Arrival time pending"}</p>
-            <p className="mt-3 text-sm font-semibold text-[#141427]">{actionLabel}</p>
+            <p className={`mt-2 text-sm font-semibold ${isNight ? "text-white" : "text-[#141427]"}`}>{label}</p>
+            <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : isNight ? "text-white/68" : "text-[#1c1c2e]/70"}`}>{tag}</p>
+            <p className={`mt-3 text-xs ${isNight ? "text-white/72" : "text-[#1c1c2e]/72"}`}>{arrivalTime ? `Arrive by ${arrivalTime}` : "Arrival time pending"}</p>
+            <p className={`mt-3 text-sm font-semibold ${isNight ? "text-white" : "text-[#141427]"}`}>{actionLabel}</p>
         </button>
     );
 }
 
-function ReasonRow({ factor }: { factor: DecisionFactor }) {
+function ReasonRow({ factor, isNight }: { factor: DecisionFactor; isNight: boolean }) {
     const icon = getFactorIcon(factor.type);
 
     return (
         <div className="flex items-start gap-3">
             <span className="mt-0.5 text-[var(--accent)]">{icon}</span>
             <div>
-                <p className="text-sm font-medium capitalize text-[#1c1c2e]">{factor.type}</p>
-                <p className="text-xs leading-5 text-[#1c1c2e]/65">{factor.message}</p>
+                <p className={`text-sm font-medium capitalize ${isNight ? "text-white" : "text-[#1c1c2e]"}`}>{factor.type}</p>
+                <p className={`text-xs leading-5 ${isNight ? "text-white/68" : "text-[#1c1c2e]/65"}`}>{factor.message}</p>
             </div>
         </div>
     );

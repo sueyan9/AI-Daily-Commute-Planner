@@ -7,6 +7,7 @@ type Props = {
     destination: string;
     arrivalTime: string;
     preference: string;
+    isNight: boolean;
     onDestinationChange: (value: string) => void;
     onArrivalTimeChange: (value: string) => void;
     onPreferenceChange: (value: string) => void;
@@ -22,15 +23,12 @@ const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "
 
 const DROPDOWN_PANEL =
     "absolute left-0 top-full z-20 mt-2 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-xl backdrop-blur-sm";
-const DROPDOWN_TRIGGER_MOBILE =
-    "flex w-full items-center justify-between gap-1.5 rounded-2xl border border-white/50 bg-white/20 px-4 py-3 text-sm font-medium text-[#1c1c2e] shadow-lg backdrop-blur-sm transition hover:bg-white/35";
-const DROPDOWN_TRIGGER_DESKTOP =
-    "md:w-auto md:justify-start md:rounded-full md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none";
 
 export default function CommuteToolbar({
     destination,
     arrivalTime,
     preference,
+    isNight,
     onDestinationChange,
     onArrivalTimeChange,
     onPreferenceChange,
@@ -61,6 +59,14 @@ export default function CommuteToolbar({
     const activeLocation = locations.find((location) => location.address === destination);
     const locationLabel = activeLocation?.label ?? (destination || "Destination");
     const [hourPart, minutePart] = (arrivalTime || "09:00").split(":");
+    const shellTextClass = isNight ? "text-white" : "text-[#1c1c2e]";
+    const shellMutedTextClass = isNight ? "text-white/65" : "text-[#1c1c2e]/60";
+    const shellBackgroundClass = isNight
+        ? "border-white/18 bg-slate-950/24 hover:bg-white/14"
+        : "border-white/50 bg-white/20 hover:bg-white/35";
+    const desktopShellClass = isNight
+        ? "md:rounded-full md:border md:border-white/18 md:bg-slate-950/24 md:px-2 md:py-1.5 md:shadow-lg md:backdrop-blur-sm"
+        : "md:rounded-full md:border md:border-white/50 md:bg-white/20 md:px-2 md:py-1.5 md:shadow-lg md:backdrop-blur-sm";
 
     const handleSelectLocation = (address: string) => {
         onDestinationChange(address);
@@ -80,7 +86,11 @@ export default function CommuteToolbar({
 
     return (
         <div ref={containerRef} className="relative z-30 w-full max-w-2xl space-y-3">
-            <div className="flex items-center gap-3 rounded-full border border-white/50 bg-white/20 px-5 py-3 shadow-lg backdrop-blur-sm">
+            <div
+                className={`flex items-center gap-3 rounded-full border px-5 py-3 shadow-lg backdrop-blur-sm ${
+                    isNight ? "border-white/18 bg-slate-950/24" : "border-white/50 bg-white/20"
+                }`}
+            >
                 <input
                     type="text"
                     value={destination}
@@ -91,30 +101,32 @@ export default function CommuteToolbar({
                         }
                     }}
                     placeholder="Where do you need to be?"
-                    className="h-8 flex-1 bg-transparent text-[15px] font-medium text-[#1c1c2e] outline-none placeholder:text-[#1c1c2e]/50"
+                    className={`h-8 flex-1 bg-transparent text-[15px] font-medium outline-none ${
+                        isNight ? "text-white placeholder:text-white/50" : "text-[#1c1c2e] placeholder:text-[#1c1c2e]/50"
+                    }`}
                 />
                 <button
                     type="button"
                     onClick={onPlan}
                     aria-label="Search"
-                    className="text-[#1c1c2e]/60 transition hover:text-[#1c1c2e]"
+                    className={`transition ${isNight ? "text-white/70 hover:text-white" : "text-[#1c1c2e]/60 hover:text-[#1c1c2e]"}`}
                 >
                     <SearchIcon />
                 </button>
             </div>
 
-            <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-1 md:rounded-full md:border md:border-white/50 md:bg-white/20 md:px-2 md:py-1.5 md:shadow-lg md:backdrop-blur-sm">
+            <div className={`flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-1 ${desktopShellClass}`}>
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => toggleMenu("location")}
-                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
+                        className={`flex w-full items-center justify-between gap-1.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-sm transition md:w-auto md:justify-start md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none ${shellTextClass} ${shellBackgroundClass}`}
                     >
                         <span className="flex items-center gap-1.5">
                             <HomeIcon />
                             <span className="max-w-[160px] truncate md:max-w-[120px]">{locationLabel}</span>
                         </span>
-                        <span className="text-xs text-[#1c1c2e]/60">▾</span>
+                        <span className={`text-xs ${shellMutedTextClass}`}>▾</span>
                     </button>
 
                     {activeMenu === "location" && (
@@ -172,19 +184,19 @@ export default function CommuteToolbar({
                     )}
                 </div>
 
-                <div className="hidden h-5 w-px bg-black/10 md:block" />
+                <div className={`hidden h-5 w-px md:block ${isNight ? "bg-white/12" : "bg-black/10"}`} />
 
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => toggleMenu("time")}
-                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
+                        className={`flex w-full items-center justify-between gap-1.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-sm transition md:w-auto md:justify-start md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none ${shellTextClass} ${shellBackgroundClass}`}
                     >
                         <span className="flex items-center gap-1.5">
                             <ClockIcon />
                             <span>Arrive by {hourPart}:{minutePart}</span>
                         </span>
-                        <span className="text-xs text-[#1c1c2e]/60">▾</span>
+                        <span className={`text-xs ${shellMutedTextClass}`}>▾</span>
                     </button>
 
                     {activeMenu === "time" && (
@@ -228,16 +240,16 @@ export default function CommuteToolbar({
                     )}
                 </div>
 
-                <div className="hidden h-5 w-px bg-black/10 md:block" />
+                <div className={`hidden h-5 w-px md:block ${isNight ? "bg-white/12" : "bg-black/10"}`} />
 
                 <div className="relative">
                     <button
                         type="button"
                         onClick={() => toggleMenu("preference")}
-                        className={`${DROPDOWN_TRIGGER_MOBILE} ${DROPDOWN_TRIGGER_DESKTOP}`}
+                        className={`flex w-full items-center justify-between gap-1.5 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-sm transition md:w-auto md:justify-start md:border-0 md:bg-transparent md:px-3 md:py-1.5 md:shadow-none md:backdrop-blur-none ${shellTextClass} ${shellBackgroundClass}`}
                     >
                         <span>{preference}</span>
-                        <span className="text-xs text-[#1c1c2e]/60">▾</span>
+                        <span className={`text-xs ${shellMutedTextClass}`}>▾</span>
                     </button>
 
                     {activeMenu === "preference" && (

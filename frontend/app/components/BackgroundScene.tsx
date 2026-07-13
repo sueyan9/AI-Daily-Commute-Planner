@@ -31,8 +31,8 @@ function getMood(weather: Weather) {
     if (isNight) {
         return {
             isRaining,
-            autoImageSrc: dayImageSrc,
-            overlay: "linear-gradient(180deg, rgba(10,14,35,0.55) 0%, rgba(10,14,35,0.75) 100%)",
+            autoImageSrc: "/night_auckland.png",
+            overlay: "linear-gradient(180deg, rgba(7,10,24,0.38) 0%, rgba(7,10,24,0.72) 100%)",
         };
     }
 

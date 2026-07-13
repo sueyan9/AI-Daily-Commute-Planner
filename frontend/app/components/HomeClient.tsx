@@ -148,6 +148,8 @@ export default function HomeClient() {
     const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
     const hasAutoPlannedRef = useRef(false);
     const hasAppliedCalendarTimeRef = useRef(false);
+    const currentHour = new Date().getHours();
+    const isNight = currentHour < 6 || currentHour >= 19;
 
     useEffect(() => {
         if (suggestedArrivalTime && !hasAppliedCalendarTimeRef.current) {
@@ -237,6 +239,7 @@ export default function HomeClient() {
             <SettingsMenu
                 onUploadImage={(file) => setBackgroundImageUrl(URL.createObjectURL(file))}
                 isCalendarConnected={isCalendarConnected}
+                isNight={isNight}
                 onConnectCalendar={connectCalendar}
                 onDisconnectCalendar={disconnectCalendar}
             />
@@ -247,6 +250,7 @@ export default function HomeClient() {
                         destination={destination}
                         arrivalTime={arrivalTime}
                         preference={preference}
+                        isNight={isNight}
                         onDestinationChange={setDestination}
                         onArrivalTimeChange={setArrivalTime}
                         onPreferenceChange={setPreference}
@@ -254,7 +258,7 @@ export default function HomeClient() {
                         isLoading={isLoading}
                     />
                     {nextEvent && (
-                        <p className="text-xs text-white/80">
+                        <p className={`text-xs ${isNight ? "text-white/82" : "text-white/80"}`}>
                             📅 Next: {nextEvent.summary} · Arrive by {arrivalTime}
                         </p>
                     )}
@@ -272,6 +276,7 @@ export default function HomeClient() {
                         isLoading={isLoading}
                         error={requestError}
                         arrivalTime={arrivalTime}
+                        isNight={isNight}
                         lastUpdatedAt={lastUpdatedAt}
                         lastUpdatedLabel={formatRelativeTime(lastUpdatedAt)}
                         onRefresh={handlePlanCommute}

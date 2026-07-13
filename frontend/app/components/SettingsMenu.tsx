@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 type Props = {
     onUploadImage: (file: File) => void;
     isCalendarConnected: boolean;
+    isNight: boolean;
     onConnectCalendar: () => void;
     onDisconnectCalendar: () => void;
 };
@@ -12,6 +13,7 @@ type Props = {
 export default function SettingsMenu({
     onUploadImage,
     isCalendarConnected,
+    isNight,
     onConnectCalendar,
     onDisconnectCalendar,
 }: Props) {
@@ -36,7 +38,11 @@ export default function SettingsMenu({
                 type="button"
                 onClick={() => setIsOpen((value) => !value)}
                 aria-label="Settings"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-white/25 text-sm font-semibold text-[#1c1c2e] shadow-lg backdrop-blur-md transition hover:bg-white/40"
+                className={`flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold shadow-lg backdrop-blur-md transition ${
+                    isNight
+                        ? "border-white/18 bg-slate-950/28 text-white hover:bg-slate-950/40"
+                        : "border-white/40 bg-white/25 text-[#1c1c2e] hover:bg-white/40"
+                }`}
             >
                 <UserIcon />
             </button>

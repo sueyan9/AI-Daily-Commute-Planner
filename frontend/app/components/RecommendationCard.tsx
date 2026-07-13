@@ -95,7 +95,10 @@ type Props = {
     isLoading: boolean;
     error: string | null;
     arrivalTime: string;
+    lastUpdatedAt?: Date | null;
     lastUpdatedLabel?: string | null;
+    onRefresh: () => void;
+    onApplyMode: (mode: "driving" | "transit") => void;
 };
 
 export default function RecommendationCard({
@@ -103,9 +106,13 @@ export default function RecommendationCard({
     isLoading,
     error,
     arrivalTime,
+    lastUpdatedAt,
     lastUpdatedLabel,
+    onRefresh,
+    onApplyMode,
 }: Props) {
     const [isWhyOpen, setIsWhyOpen] = useState(false);
+    const [reminderState, setReminderState] = useState<string | null>(null);
     const decision = result?.decision;
     const factors = decision?.decision_factors ?? getFallbackFactors(result);
     const comparison = decision?.comparison;
@@ -125,6 +132,46 @@ export default function RecommendationCard({
                 ? "No transfers needed"
                 : `${transitTransfers} transfer${transitTransfers > 1 ? "s" : ""}`
             : undefined;
+    const arrivalDisplay =
+        decision?.arrival_time ??
+        (recommendedMode === "transit"
+            ? comparison?.transit.arrival_time ?? formatTime(arrivalTime)
+            : comparison?.driving.arrival_time ?? formatTime(arrivalTime)) ??
+        formatTime(arrivalTime) ??
+        "Pending";
+    const leaveDeltaLabel = getLeaveDeltaLabel(leaveTime);
+    const updateState = getUpdateState(lastUpdatedAt);
+
+    const handleReminder = async () => {
+        const delayMs = getMsUntilTime(leaveTime);
+        if (delayMs === null) {
+            setReminderState("Reminder unavailable until leave time is confirmed.");
+            return;
+        }
+
+        if (typeof window === "undefined" || !("Notification" in window)) {
+            setReminderState("This browser does not support notifications.");
+            return;
+        }
+
+        const permission =
+            Notification.permission === "granted"
+                ? "granted"
+                : await Notification.requestPermission();
+
+        if (permission !== "granted") {
+            setReminderState("Enable browser notifications to get a leave reminder.");
+            return;
+        }
+
+        window.setTimeout(() => {
+            new Notification("LeaveWise", {
+                body: `Time to leave for ${result?.destination ?? "your trip"}. Aim to arrive by ${arrivalDisplay}.`,
+            });
+        }, Math.max(delayMs, 0));
+
+        setReminderState(delayMs <= 60000 ? "Reminder armed for now." : `Reminder set for ${leaveTime}.`);
+    };
 
     return (
         <div className="flex w-full max-w-2xl flex-col gap-3">
@@ -149,6 +196,23 @@ export default function RecommendationCard({
                           : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
                 </p>
 
+                {!error && !isLoading && (
+                    <div className="mt-4 grid grid-cols-1 gap-3 rounded-[22px] border border-white/10 bg-white/6 p-4 md:grid-cols-3">
+                        <MetaStat label="Arrive by" value={arrivalDisplay} />
+                        <MetaStat label="Leave in" value={leaveDeltaLabel} />
+                        <MetaStat
+                            label={recommendedMode === "transit" ? "Transit line" : "Travel time"}
+                            value={
+                                recommendedMode === "transit"
+                                    ? formatTransitLabel(comparison?.transit.route_label ?? comparison?.transit.label)
+                                    : driveMinutes
+                                      ? `${driveMinutes} min`
+                                      : "Pending"
+                            }
+                        />
+                    </div>
+                )}
+
                 {!error && !isLoading && result?.routing_basis === "predicted" && (
                     <p className="mt-1 text-xs text-[#1c1c2e]/50">
                         Based on predicted traffic near {leaveTime}, not live conditions.
@@ -165,14 +229,35 @@ export default function RecommendationCard({
                             "A live recommendation will appear here after the route and weather data load."}
                 </p>
 
-                <div className="mt-3 flex justify-center border-t border-white/30 pt-3">
-                    {!error && !isLoading && (
-                        <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-medium text-[#1c1c2e]/80">
-                            Confidence 92%
-                        </span>
-                    )}
+                <div className="mt-3 flex flex-col gap-3 border-t border-white/30 pt-3">
                     {(error || isLoading) && (
                         <StatusBadge label={error ? "Service issue" : "Refreshing"} tone={error ? "warning" : "normal"} />
+                    )}
+                    {!error && !isLoading && updateState && (
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <StatusBadge label={updateState.label} tone={updateState.tone} />
+                            <button
+                                type="button"
+                                onClick={onRefresh}
+                                className="inline-flex items-center gap-2 self-start rounded-full border border-white/30 bg-white/12 px-3 py-1.5 text-xs font-medium text-[#1c1c2e] transition hover:bg-white/20"
+                            >
+                                <RefreshIcon />
+                                Refresh now
+                            </button>
+                        </div>
+                    )}
+                    {!error && !isLoading && (
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <button
+                                type="button"
+                                onClick={handleReminder}
+                                className="inline-flex items-center gap-2 self-start rounded-full border border-[var(--accent)]/25 bg-[var(--accent-soft)]/50 px-3 py-1.5 text-xs font-medium text-[var(--accent)] transition hover:bg-[var(--accent-soft)]/70"
+                            >
+                                <BellIcon />
+                                Remind me to leave
+                            </button>
+                            {reminderState && <p className="text-xs text-[#1c1c2e]/55">{reminderState}</p>}
+                        </div>
                     )}
                 </div>
             </div>
@@ -183,13 +268,17 @@ export default function RecommendationCard({
                     icon={<CarIcon />}
                     label={comparison?.driving.label ?? "Drive"}
                     minutes={driveMinutes}
+                    arrivalTime={comparison?.driving.arrival_time ?? formatTime(arrivalTime)}
                     tag={recommendedMode === "driving" ? "Recommended" : `Leave ${comparison?.driving.leave_time ?? leaveTime}`}
                     isRecommended={recommendedMode === "driving"}
+                    actionLabel={recommendedMode === "driving" ? "Current best option" : "Choose drive instead"}
+                    onSelect={() => onApplyMode("driving")}
                 />
                 <CompareCard
                     icon={<TransitIcon />}
-                    label={comparison?.transit.route_label ?? comparison?.transit.label ?? "Public transport"}
+                    label={formatTransitLabel(comparison?.transit.route_label ?? comparison?.transit.label)}
                     minutes={transitAvailable ? transitMinutes ?? null : null}
+                    arrivalTime={comparison?.transit.arrival_time ?? null}
                     tag={
                         recommendedMode === "transit"
                             ? "Recommended"
@@ -199,10 +288,18 @@ export default function RecommendationCard({
                     }
                     isRecommended={recommendedMode === "transit"}
                     isUnavailable={!transitAvailable}
+                    actionLabel={
+                        recommendedMode === "transit"
+                            ? "Current best option"
+                            : transitAvailable
+                              ? "Choose transit instead"
+                              : "Transit unavailable"
+                    }
+                    onSelect={transitAvailable ? () => onApplyMode("transit") : undefined}
                 />
             </div>
 
-            {/* Why this recommendation (collapsed on mobile, always open on desktop) */}
+            {/* Why this recommendation */}
             <div className="rounded-[24px] border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent p-5 shadow-none backdrop-blur-sm">
                 <button
                     type="button"
@@ -210,10 +307,10 @@ export default function RecommendationCard({
                     className="flex w-full items-center justify-between text-left"
                 >
                     <p className="ui-label text-[#1c1c2e]/60">Why this recommendation</p>
-                    <span className="text-[#1c1c2e]/50 md:hidden">{isWhyOpen ? "▲" : "▼"}</span>
+                    <span className="text-[#1c1c2e]/50">{isWhyOpen ? "▲" : "▼"}</span>
                 </button>
 
-                <div className={`mt-4 space-y-4 ${isWhyOpen ? "" : "hidden"} md:!block`}>
+                <div className={`mt-4 space-y-4 ${isWhyOpen ? "" : "hidden"}`}>
                     {factors.map((factor) => (
                         <ReasonRow key={`${factor.type}-${factor.message}`} factor={factor} />
                     ))}
@@ -244,28 +341,46 @@ function StatusBadge({ label, tone }: { label: string; tone: "normal" | "warning
     );
 }
 
+function MetaStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#1c1c2e]/45">{label}</p>
+            <p className="mt-1 text-sm font-medium text-[#1c1c2e]">{value}</p>
+        </div>
+    );
+}
+
 function CompareCard({
     icon,
     label,
     minutes,
+    arrivalTime,
     tag,
     isRecommended,
     isUnavailable = false,
+    actionLabel,
+    onSelect,
 }: {
     icon: ReactNode;
     label: string;
     minutes: number | null;
+    arrivalTime: string | null;
     tag: string;
     isRecommended: boolean;
     isUnavailable?: boolean;
+    actionLabel: string;
+    onSelect?: () => void;
 }) {
     return (
-        <div
+        <button
+            type="button"
+            onClick={onSelect}
+            disabled={!onSelect}
             className={`rounded-[22px] border bg-gradient-to-r p-5 backdrop-blur-sm ${
                 isRecommended
                     ? "border-[var(--accent)]/50 from-[var(--accent-soft)]/45 via-[var(--accent-soft)]/20 to-[var(--accent-soft)]/5 shadow-xl"
                     : "border-white/20 from-white/10 via-white/5 to-transparent shadow-md"
-            }`}
+            } ${onSelect ? "cursor-pointer transition hover:-translate-y-0.5 hover:bg-white/10" : "cursor-default opacity-70"}`}
         >
             <div className="text-[#1c1c2e]/70">{icon}</div>
             <p className="mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] text-[#1c1c2e]">
@@ -276,7 +391,9 @@ function CompareCard({
             </p>
             <p className="mt-2 text-sm font-medium text-[#1c1c2e]">{label}</p>
             <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : "text-[#1c1c2e]/55"}`}>{tag}</p>
-        </div>
+            <p className="mt-3 text-xs text-[#1c1c2e]/55">{arrivalTime ? `Arrive by ${arrivalTime}` : "Arrival time pending"}</p>
+            <p className="mt-3 text-sm font-medium text-[#1c1c2e]">{actionLabel}</p>
+        </button>
     );
 }
 
@@ -370,6 +487,110 @@ function getTimeParts(value: string) {
     }
 
     return { time: match[1], period: match[2] };
+}
+
+function formatTransitLabel(value: string | undefined): string {
+    if (!value) {
+        return "Public transport";
+    }
+
+    const trimmed = value.trim();
+    if (/^route\s/i.test(trimmed) || /^public transport$/i.test(trimmed)) {
+        return trimmed;
+    }
+
+    if (/^[A-Z0-9-]+$/.test(trimmed)) {
+        return `Route ${trimmed}`;
+    }
+
+    return trimmed;
+}
+
+function getUpdateState(lastUpdatedAt: Date | null | undefined) {
+    if (!lastUpdatedAt) {
+        return null;
+    }
+
+    const minutesAgo = Math.floor((Date.now() - lastUpdatedAt.getTime()) / 60000);
+    if (minutesAgo >= 10) {
+        return {
+            label: `Traffic data is ${minutesAgo} min old. Refresh before leaving.`,
+            tone: "warning" as const,
+        };
+    }
+
+    return {
+        label: minutesAgo <= 0 ? "Traffic and weather were refreshed just now." : `Traffic and weather refreshed ${minutesAgo} min ago.`,
+        tone: "normal" as const,
+    };
+}
+
+function getLeaveDeltaLabel(leaveTime: string): string {
+    const minutesUntilLeave = getMinutesUntilTime(leaveTime);
+    if (minutesUntilLeave === null) {
+        return "Pending";
+    }
+
+    if (minutesUntilLeave <= 0) {
+        return "Leave now";
+    }
+
+    if (minutesUntilLeave === 1) {
+        return "1 min";
+    }
+
+    if (minutesUntilLeave < 60) {
+        return `${minutesUntilLeave} min`;
+    }
+
+    const hours = Math.floor(minutesUntilLeave / 60);
+    const minutes = minutesUntilLeave % 60;
+    return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
+}
+
+function getMinutesUntilTime(value: string): number | null {
+    const target = getDateForTime(value);
+    if (!target) {
+        return null;
+    }
+
+    return Math.round((target.getTime() - Date.now()) / 60000);
+}
+
+function getMsUntilTime(value: string): number | null {
+    const target = getDateForTime(value);
+    if (!target) {
+        return null;
+    }
+
+    return target.getTime() - Date.now();
+}
+
+function getDateForTime(value: string): Date | null {
+    const match = value.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+    if (!match) {
+        return null;
+    }
+
+    let hours = Number.parseInt(match[1], 10);
+    const minutes = Number.parseInt(match[2], 10);
+    const period = match[3];
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+        return null;
+    }
+
+    if (period === "PM" && hours !== 12) {
+        hours += 12;
+    }
+    if (period === "AM" && hours === 12) {
+        hours = 0;
+    }
+
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(hours, minutes, 0, 0);
+    return target;
 }
 
 function getFallbackFactors(result: CommutePlan | null): DecisionFactor[] {
@@ -488,6 +709,24 @@ function PreferenceIcon() {
             <circle cx="15" cy="7" r="2" />
             <circle cx="9" cy="12" r="2" />
             <circle cx="13" cy="17" r="2" />
+        </SvgShell>
+    );
+}
+
+function RefreshIcon() {
+    return (
+        <SvgShell>
+            <path d="M20 11a8 8 0 1 0 2 5.5" />
+            <path d="M20 4v7h-7" />
+        </SvgShell>
+    );
+}
+
+function BellIcon() {
+    return (
+        <SvgShell>
+            <path d="M6 9a6 6 0 1 1 12 0v4l1.5 2.5H4.5L6 13z" />
+            <path d="M10 18a2 2 0 0 0 4 0" />
         </SvgShell>
     );
 }

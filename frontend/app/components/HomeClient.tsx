@@ -95,6 +95,8 @@ type StoredPlan = {
     preference: string;
 };
 
+type PlanOverrides = Partial<StoredPlan>;
+
 const LAST_PLAN_KEY = "leavewise:last-plan";
 
 function formatRelativeTime(date: Date | null): string | null {
@@ -165,11 +167,15 @@ export default function HomeClient() {
         }
     }, []);
 
-    const handlePlanCommute = async () => {
+    const handlePlanCommute = async (overrides?: PlanOverrides) => {
         if (!location) {
             alert("Current location is not available yet.");
             return;
         }
+
+        const nextDestination = overrides?.destination ?? destination;
+        const nextArrivalTime = overrides?.arrivalTime ?? arrivalTime;
+        const nextPreference = overrides?.preference ?? preference;
 
         setIsLoading(true);
         setRequestError(null);
@@ -183,9 +189,9 @@ export default function HomeClient() {
                 body: JSON.stringify({
                     latitude: location.latitude,
                     longitude: location.longitude,
-                    destination,
-                    arrival_time: arrivalTime || null,
-                    preference,
+                    destination: nextDestination,
+                    arrival_time: nextArrivalTime || null,
+                    preference: nextPreference,
                 }),
             });
 
@@ -198,13 +204,23 @@ export default function HomeClient() {
             setLastUpdatedAt(new Date());
             window.localStorage.setItem(
                 LAST_PLAN_KEY,
-                JSON.stringify({ destination, arrivalTime, preference })
+                JSON.stringify({
+                    destination: nextDestination,
+                    arrivalTime: nextArrivalTime,
+                    preference: nextPreference,
+                })
             );
         } catch {
             setRequestError("Unable to load the latest commute recommendation.");
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleApplyMode = async (mode: "driving" | "transit") => {
+        const nextPreference = mode === "driving" ? "Fastest route" : "Fewer transfers";
+        setPreference(nextPreference);
+        await handlePlanCommute({ preference: nextPreference });
     };
 
     useEffect(() => {
@@ -256,7 +272,10 @@ export default function HomeClient() {
                         isLoading={isLoading}
                         error={requestError}
                         arrivalTime={arrivalTime}
+                        lastUpdatedAt={lastUpdatedAt}
                         lastUpdatedLabel={formatRelativeTime(lastUpdatedAt)}
+                        onRefresh={handlePlanCommute}
+                        onApplyMode={handleApplyMode}
                     />
                 </div>
             </div>

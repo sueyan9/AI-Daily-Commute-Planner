@@ -81,3 +81,53 @@ class TestDurationToMinutes:
         # round(2.5) is 2, not 3. Worth pinning down explicitly so a future
         # refactor to a "smarter" rounding scheme doesn't silently change behavior.
         assert planner._duration_to_minutes("150s") == 2
+
+
+class TestModeSelection:
+    def test_normal_conditions_choose_shorter_drive_even_if_llm_prefers_transit(self, planner, monkeypatch):
+        monkeypatch.setattr(planner.llm, "decide_mode", lambda **kwargs: "transit")
+        monkeypatch.setattr(planner.llm, "narrate_recommendation", lambda **kwargs: None)
+
+        decision = planner._build_decision(
+            destination="Auckland CBD",
+            driving_route={"duration": "3000s", "static_duration": "3000s"},
+            transit_route={
+                "available": True,
+                "status": "Route 11T is running on time.",
+                "route_label": "11T",
+                "departure_time": "7:30 AM",
+                "arrival_time": "8:46 AM",
+                "travel_time_minutes": 76,
+            },
+            weather={"rain": 0, "precipitation": 0, "wind_speed": 8},
+            weather_notice=None,
+            arrival_time="08:40",
+            preference="Fastest route",
+        )
+
+        assert decision["recommended_mode"] == "driving"
+        assert decision["travel_time_minutes"] == 50
+
+    def test_normal_conditions_choose_shorter_transit_even_if_llm_prefers_driving(self, planner, monkeypatch):
+        monkeypatch.setattr(planner.llm, "decide_mode", lambda **kwargs: "driving")
+        monkeypatch.setattr(planner.llm, "narrate_recommendation", lambda **kwargs: None)
+
+        decision = planner._build_decision(
+            destination="Auckland CBD",
+            driving_route={"duration": "3000s", "static_duration": "3000s"},
+            transit_route={
+                "available": True,
+                "status": "NX1 is running on time.",
+                "route_label": "NX1",
+                "departure_time": "7:35 AM",
+                "arrival_time": "8:10 AM",
+                "travel_time_minutes": 35,
+            },
+            weather={"rain": 0, "precipitation": 0, "wind_speed": 8},
+            weather_notice=None,
+            arrival_time="08:40",
+            preference="Fastest route",
+        )
+
+        assert decision["recommended_mode"] == "transit"
+        assert decision["travel_time_minutes"] == 35

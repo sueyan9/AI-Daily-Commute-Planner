@@ -124,6 +124,8 @@ export default function RecommendationCard({
         comparison?.driving.travel_time_minutes ?? getDriveMinutes(result?.driving_route?.duration);
     const recommendedMode = decision?.recommended_mode ?? comparison?.recommended_mode ?? "driving";
     const transitMinutes = comparison?.transit.travel_time_minutes ?? result?.transit_route?.travel_time_minutes;
+    const recommendedTravelMinutes =
+        decision?.travel_time_minutes ?? (recommendedMode === "transit" ? transitMinutes ?? null : driveMinutes);
     const transitAvailable = comparison?.transit.available ?? false;
     const transitTransfers = result?.transit_route?.transfers;
     const transitTransferLabel =
@@ -193,7 +195,7 @@ export default function RecommendationCard({
                         ? "Recommendation unavailable"
                         : isLoading
                           ? "Analyzing live conditions"
-                          : `${decision?.recommended_label ?? "Drive"} · ${driveMinutes ? `${driveMinutes} min` : "Timing pending"}`}
+                          : `${decision?.recommended_label ?? "Drive"} · ${recommendedTravelMinutes ? `${recommendedTravelMinutes} min` : "Timing pending"}`}
                 </p>
 
                 {!error && !isLoading && (
@@ -205,18 +207,12 @@ export default function RecommendationCard({
                             value={
                                 recommendedMode === "transit"
                                     ? formatTransitLabel(comparison?.transit.route_label ?? comparison?.transit.label)
-                                    : driveMinutes
-                                      ? `${driveMinutes} min`
+                                    : recommendedTravelMinutes
+                                      ? `${recommendedTravelMinutes} min`
                                       : "Pending"
                             }
                         />
                     </div>
-                )}
-
-                {!error && !isLoading && result?.routing_basis === "predicted" && (
-                    <p className="mt-1 text-xs text-[#1c1c2e]/50">
-                        Based on predicted traffic near {leaveTime}, not live conditions.
-                    </p>
                 )}
 
                 <p className="mt-4 border-t border-white/10 pt-3 text-[14px] leading-6 text-[#1c1c2e]/75">
@@ -258,6 +254,11 @@ export default function RecommendationCard({
                             </button>
                             {reminderState && <p className="text-xs text-[#1c1c2e]/55">{reminderState}</p>}
                         </div>
+                    )}
+                    {!error && !isLoading && result?.routing_basis === "predicted" && (
+                        <p className="text-xs text-[#1c1c2e]/45">
+                            Based on predicted traffic near {leaveTime}, not live conditions.
+                        </p>
                     )}
                 </div>
             </div>
@@ -382,17 +383,17 @@ function CompareCard({
                     : "border-white/20 from-white/10 via-white/5 to-transparent shadow-md"
             } ${onSelect ? "cursor-pointer transition hover:-translate-y-0.5 hover:bg-white/10" : "cursor-default opacity-70"}`}
         >
-            <div className="text-[#1c1c2e]/70">{icon}</div>
-            <p className="mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] text-[#1c1c2e]">
+            <div className="text-[#1c1c2e]/80">{icon}</div>
+            <p className="mt-2 flex items-baseline gap-1.5 text-[2.5rem] font-semibold leading-none tracking-[-0.04em] text-[#141427]">
                 {isUnavailable ? "--" : minutes ?? "--"}
                 {!isUnavailable && minutes !== null && (
-                    <span className="text-[0.4em] font-medium text-[#1c1c2e]/60">min</span>
+                    <span className="text-[0.4em] font-medium text-[#1c1c2e]/70">min</span>
                 )}
             </p>
-            <p className="mt-2 text-sm font-medium text-[#1c1c2e]">{label}</p>
-            <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : "text-[#1c1c2e]/55"}`}>{tag}</p>
-            <p className="mt-3 text-xs text-[#1c1c2e]/55">{arrivalTime ? `Arrive by ${arrivalTime}` : "Arrival time pending"}</p>
-            <p className="mt-3 text-sm font-medium text-[#1c1c2e]">{actionLabel}</p>
+            <p className="mt-2 text-sm font-semibold text-[#141427]">{label}</p>
+            <p className={`mt-1 text-xs ${isRecommended ? "text-[var(--accent)]" : "text-[#1c1c2e]/70"}`}>{tag}</p>
+            <p className="mt-3 text-xs text-[#1c1c2e]/72">{arrivalTime ? `Arrive by ${arrivalTime}` : "Arrival time pending"}</p>
+            <p className="mt-3 text-sm font-semibold text-[#141427]">{actionLabel}</p>
         </button>
     );
 }
@@ -532,20 +533,20 @@ function getLeaveDeltaLabel(leaveTime: string): string {
     }
 
     if (minutesUntilLeave <= 0) {
-        return "Leave now";
+        return "Now";
     }
 
     if (minutesUntilLeave === 1) {
-        return "1 min";
+        return "In 1 min";
     }
 
     if (minutesUntilLeave < 60) {
-        return `${minutesUntilLeave} min`;
+        return `In ${minutesUntilLeave} min`;
     }
 
     const hours = Math.floor(minutesUntilLeave / 60);
     const minutes = minutesUntilLeave % 60;
-    return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
+    return minutes === 0 ? `In ${hours} hr` : `In ${hours} hr ${minutes} min`;
 }
 
 function getMinutesUntilTime(value: string): number | null {

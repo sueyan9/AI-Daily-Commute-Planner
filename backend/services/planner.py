@@ -145,6 +145,13 @@ class PlannerService:
             if transit_route and transit_route.get("available")
             else None
         )
+        rule_based_mode = self._choose_mode(
+            drive_minutes=drive_minutes,
+            traffic_level=traffic["level"],
+            weather_level=weather_summary["level"],
+            transit_route=transit_route,
+            preference=preference,
+        )
         llm_mode = self.llm.decide_mode(
             destination=destination,
             driving_route=driving_route,
@@ -160,15 +167,17 @@ class PlannerService:
             llm_mode == "driving" or bool(transit_route and transit_route.get("available"))
         )
 
-        if llm_mode_is_valid:
+        if (
+            drive_minutes is not None
+            and transit_minutes is not None
+            and traffic["level"] == "normal"
+            and weather_summary["level"] == "good"
+        ):
+            recommended_mode = rule_based_mode
+        elif llm_mode_is_valid:
             recommended_mode = llm_mode
         else:
-            recommended_mode = self._choose_mode(
-                drive_minutes=drive_minutes,
-                traffic_level=traffic["level"],
-                transit_route=transit_route,
-                preference=preference,
-            )
+            recommended_mode = rule_based_mode
         recommended_label = "Public transport" if recommended_mode == "transit" else "Drive"
         recommended_icon = "🚌" if recommended_mode == "transit" else "🚗"
         recommended_leave_time = (
@@ -368,6 +377,7 @@ class PlannerService:
         *,
         drive_minutes: int | None,
         traffic_level: str,
+        weather_level: str,
         transit_route: dict[str, Any] | None,
         preference: str | None,
     ) -> str:
@@ -379,6 +389,12 @@ class PlannerService:
 
         if drive_minutes is None:
             return "transit"
+
+        # Under normal conditions, default to the shorter trip. This keeps the
+        # product aligned with the core commute question instead of letting a
+        # model rationalize a clearly slower option.
+        if traffic_level == "normal" and weather_level == "good" and transit_minutes is not None:
+            return "transit" if transit_minutes < drive_minutes else "driving"
 
         if preference_value == "fastest route":
             return "transit" if transit_minutes is not None and transit_minutes < drive_minutes else "driving"

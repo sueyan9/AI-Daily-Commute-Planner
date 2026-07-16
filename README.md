@@ -1,203 +1,327 @@
-# 🚗 LeaveWise
+# LeaveWise
 
-> **An AI-powered daily commute assistant that helps you decide when to leave and how to travel every morning.**
+LeaveWise is an AI-powered daily commute assistant built for one practical question:
 
-Instead of switching between Google Maps, weather forecasts, and public transport apps, LeaveWise combines real-time data sources with Claude to give you one simple recommendation.
+> Should I drive, take public transport, or leave earlier today?
 
-> **"Drive today. Traffic is light and you'll save about 33 minutes compared with public transport."**
+It combines browser geolocation, Google Maps routing, weather data, and LLM-backed narration to generate a short, decision-focused commute recommendation.
 
----
+## Current Status
 
-# ✨ Why LeaveWise?
+This project is now beyond the initial UI prototype stage.
 
-Most navigation apps answer:
+What is working today:
 
-> **"How do I get there?"**
+- Next.js frontend with a responsive, mobile-first single-page UI
+- FastAPI backend with a thin API layer and a dedicated planner service
+- Browser geolocation
+- Reverse geocoding for the user's current location
+- Google Routes API driving estimates
+- Google Routes API transit comparison
+- Open-Meteo current weather integration
+- Rule-based commute decision logic
+- LLM-backed recommendation explanation with provider routing
+- Google Calendar OAuth connection for next-event arrival-time suggestions
+- Saved destinations and returning-user auto-plan behavior
+- Playwright end-to-end tests for the main frontend flow
+- Pytest coverage for core backend planner and API behavior
 
-LeaveWise answers:
+Still in progress or not yet complete:
 
-> **"What is the smartest way to commute today?"**
+- Stronger live transit delay enrichment from Auckland Transport realtime feeds
+- More polished calendar-driven commute automation
+- User preference learning beyond the current simple preference selector
+- Production deployment and full environment hardening
 
-Every time you open it, the application:
+## What The App Does
 
-- 📍 Detects your current location
-- 🌤 Checks the latest weather and adapts the background scene to match it
-- 🚦 Analyses live driving traffic
-- 🚌 Compares driving against public transport, including transfers
-- 🤖 Has Claude explain *why* it recommends a particular option, in one sentence
-- ⏰ Suggests the best departure time to make your arrival deadline
+On a normal run, LeaveWise:
 
-The goal is not to replace Google Maps.
+1. Reads the user's current browser location.
+2. Reverse-geocodes that location into a readable origin.
+3. Fetches driving route data from Google Routes.
+4. Fetches a transit option from Google Routes.
+5. Fetches current weather from Open-Meteo.
+6. Uses planner logic to decide which mode is better.
+7. Uses an LLM to explain that decision in one short sentence.
 
-The goal is to help users make better commuting decisions with less reading.
+If the LLM is disabled or unavailable, the planner still returns a usable fallback recommendation based on the same structured data.
 
----
+## Architecture
 
-# 📱 Current Features
-
-### ✅ Browser Geolocation
-
-Automatically retrieves the user's current location using the browser Geolocation API. No need to manually enter your starting location every day.
-
----
-
-### ✅ Reverse Geocoding & Driving Routes
-
-Converts GPS coordinates into a human-readable address, then retrieves live driving duration, distance, and traffic-aware timing via the Google Routes API.
-
----
-
-### ✅ Public Transport Routing
-
-Uses the Google Routes API in `TRANSIT` mode to find real multi-leg public transport options — including transfers, not just direct routes — with live departure/arrival times and travel duration.
-
-An earlier version matched only direct routes against Auckland Transport's raw GTFS feed, which meant most real commutes (anything needing a transfer) came back as "no service available." Google Transit routing replaced that as the primary source. The AT GTFS-Realtime integration (`backend/services/auckland_transport.py`) is still in the codebase, currently dormant, earmarked for a future phase to overlay live delay/service-alert data on top of the Google-provided route.
-
----
-
-### ✅ Live Weather
-
-Retrieves current temperature, rain, and wind from Open-Meteo (no API key required).
-
----
-
-### ✅ AI Recommendation (Claude/Deep seek/Open AI )
-
-A rule-based decision engine picks the recommended mode (drive vs. transit), the best leave time, and classifies traffic/weather severity from the real data above. Claude (`claude-haiku-4-5`) then explains that decision in a single, practical sentence — it explains the decision that's already been made, it doesn't get to override it, and it's instructed never to invent traffic incidents or delays that aren't in the data.
-
-If the LLM call fails or isn't configured, the app falls back to a plain-text summary built from the same rule engine, so the app never breaks — it just loses the natural-language polish.
-
-Provider is swappable via `LLM_PROVIDER` (`anthropic` / `openai` / `deepseek`) in `backend/.env`.
-
----
-
-### ✅ Weather-Reactive UI
-
-A full-bleed background photo that changes with real conditions: clear, cloudy/windy, rainy, or foggy (matched against actual Open-Meteo data, including WMO fog codes), plus a day/night tint and an animated rain overlay when it's actually raining. Users can also upload their own background photo.
-
----
-
-### ✅ Saved Locations & Returning-User Auto-Plan
-
-Home/Work/etc. locations are saved to `localStorage` and selectable from a dropdown instead of retyping every time. If you've planned a commute before, the app remembers your last destination/arrival time/preference and automatically re-plans as soon as your location is available — no input required to see today's recommendation.
-
----
-
-### ✅ Responsive Web Interface
-
-A glassmorphic, mobile-first interface built with Next.js and Tailwind CSS: a compact search/filter bar up top, an AI recommendation hero card, side-by-side (desktop) or stacked (mobile) comparison cards for drive vs. transit, and a collapsible "why this recommendation" breakdown.
-
----
-
-# 🏗 System Architecture
-
-```
+```text
 Next.js Frontend
-        │
-        ▼
-FastAPI Backend (api/commute.py)
-        │
-        ▼
-Planner Service (services/planner.py)
-        │
- ┌──────────────────────┐
- │ Google Routes API     │  driving + transit routing
- │ Open-Meteo            │  weather
- │ Claude (Anthropic)    │  recommendation explanation
- └──────────────────────┘
-        │
-        ▼
-Commute Plan JSON → UI
+        |
+        v
+FastAPI API Layer
+        |
+        v
+PlannerService
+        |
+  +------------------------+
+  | Google Maps            |
+  | Open-Meteo             |
+  | LLM providers          |
+  | Google Calendar (opt.) |
+  +------------------------+
+        |
+        v
+Commute recommendation JSON
 ```
 
-`api/commute.py` stays thin and delegates everything to `services/planner.py`, which composes `services/google_maps.py`, `services/weather.py`, and `services/llm.py`. Each external API has its own service wrapper; the planner never talks to a third-party API directly.
+Current backend flow:
 
----
+- `backend/api/commute.py` exposes `POST /commute/plan`
+- `backend/services/planner.py` composes route, weather, and decision logic
+- `backend/services/google_maps.py` wraps Google geocoding and routing calls
+- `backend/services/weather.py` wraps weather retrieval
+- `backend/services/llm.py` handles decision and narration model calls
+- `backend/api/calendar.py` and `backend/services/google_calendar.py` handle Google Calendar OAuth and next-event lookup
 
-# 🛠 Tech Stack
+## Tech Stack
 
-## Frontend
+Frontend:
 
-- Next.js 16 (App Router, Turbopack)
+- Next.js 16
 - React 19
 - TypeScript
-- Tailwind CSS v4
+- Tailwind CSS 4
 
-## Backend
+Backend:
 
 - FastAPI
 - Python
+- Requests
 
-## APIs in use
+External APIs and services:
 
 - Browser Geolocation API
 - Google Geocoding API
-- Google Routes API (driving + transit)
+- Google Routes API
 - Open-Meteo Weather API
-- Anthropic Claude API (default LLM provider; OpenAI and DeepSeek supported as drop-in alternatives)
+- OpenAI API
+- DeepSeek API
+- Anthropic API
+- Google Calendar API
 
-## Dormant / reserved for later
+## Key Features In The Current Build
 
-- Auckland Transport GTFS + Realtime (`services/auckland_transport.py`) — for delay/service-alert enrichment on top of Google Transit routes
+### Commute planning
 
----
+- Accepts current coordinates, destination, optional target arrival time, and a simple travel preference
+- Returns both route data and a final recommendation
+- Supports predicted routing when an arrival time is provided
 
-# 🧪 Testing
+### Recommendation engine
 
-End-to-end tests live in `frontend/tests/` (Playwright):
+- Uses rule-based logic for the core decision
+- Can use separate LLM providers for decision and narration
+- Falls back safely if model calls fail
 
-- **`homepage.spec.ts`** — the destination search and Plan button render on load
-- **`geolocation.spec.ts`** — mocks the browser Geolocation permission, then asserts clicking Plan does *not* trigger the "current location is not available yet" alert (tests the actual behavior, not just the absence of an error string)
-- **`commute-flow.spec.ts`** — the full flow: enter a destination, click Plan, the AI recommendation renders. The `/commute/plan` network call is mocked with a response shaped exactly like the real backend's JSON, so this test needs no live backend, API keys, or network access to run
+### Frontend experience
 
-Run locally:
+- Weather-reactive background scene
+- Recommendation card with leave time, arrival time, travel time, and explanation
+- Saved destination shortcuts in `localStorage`
+- Automatic re-plan for returning users
+- Browser notification reminder support for leave time
+
+### Calendar support
+
+- Google Calendar connect / disconnect flow
+- Reads the next upcoming event
+- Suggests an arrival time based on that event
+
+## API
+
+Main endpoint:
+
+```http
+POST /commute/plan
+```
+
+Example request:
+
+```json
+{
+  "latitude": -36.82,
+  "longitude": 174.61,
+  "destination": "Auckland CBD, Auckland, New Zealand",
+  "arrival_time": "08:25",
+  "preference": "Fastest route"
+}
+```
+
+Typical response shape:
+
+```json
+{
+  "current_location": "23 Saint Catherine Crescent, West Harbour, Auckland 0618, New Zealand",
+  "destination": "Auckland CBD, Auckland, New Zealand",
+  "driving_route": {
+    "duration": "1250s",
+    "distance_meters": 19052,
+    "static_duration": "1080s"
+  },
+  "transit_route": {
+    "available": true,
+    "status": "NX1 is running on time.",
+    "route_label": "NX1",
+    "departure_time": "8:05 AM",
+    "arrival_time": "8:42 AM",
+    "travel_time_minutes": 37
+  },
+  "weather": {
+    "temperature": 12.5,
+    "feels_like": 10.8,
+    "precipitation": 0,
+    "rain": 0,
+    "weather_code": 3,
+    "wind_speed": 15.2
+  },
+  "weather_notice": null,
+  "recommendation": "Leave now by car. Driving is estimated to take about 21 minutes and conditions look fine.",
+  "decision": {
+    "recommended_mode": "driving",
+    "recommended_label": "Drive",
+    "leave_time": "8:04 AM",
+    "arrival_time": "8:25 AM",
+    "travel_time_minutes": 21
+  },
+  "routing_basis": "live"
+}
+```
+
+Calendar endpoints currently exposed:
+
+- `GET /calendar/status`
+- `GET /calendar/oauth/login`
+- `GET /calendar/oauth/callback`
+- `POST /calendar/disconnect`
+- `GET /calendar/next-event`
+
+## Project Structure
+
+```text
+frontend/
+  app/
+    components/
+    hooks/
+  tests/
+
+backend/
+  api/
+  core/
+  services/
+  tests/
+  main.py
+```
+
+Notable files:
+
+- `frontend/app/components/HomeClient.tsx`
+- `frontend/app/components/CommuteToolbar.tsx`
+- `frontend/app/components/RecommendationCard.tsx`
+- `frontend/app/hooks/useGeolocation.ts`
+- `frontend/app/hooks/useGoogleCalendar.ts`
+- `backend/api/commute.py`
+- `backend/api/calendar.py`
+- `backend/services/planner.py`
+- `backend/services/google_maps.py`
+- `backend/services/weather.py`
+- `backend/services/llm.py`
+
+## Local Setup
+
+### 1. Backend
+
+Create your local environment file from `backend/.env.example` and add the keys you want to use.
+
+Important environment variables:
+
+```env
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+OPENAI_API_KEY=your_openai_api_key
+DEEPSEEK_API_KEY=your_deepseek_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+LLM_PROVIDER=openai
+DECISION_LLM_PROVIDER=openai
+NARRATION_LLM_PROVIDER=openai
+LLM_ENABLED=true
+GOOGLE_CALENDAR_CLIENT_ID=your_google_calendar_client_id
+GOOGLE_CALENDAR_CLIENT_SECRET=your_google_calendar_client_secret
+```
+
+Install and run:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn main:app --reload --port 8000
+```
+
+### 2. Frontend
+
+Install and run:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Default local URLs:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+
+## Testing
+
+Frontend E2E tests:
 
 ```bash
 cd frontend
 npx playwright test
 ```
 
-`playwright.config.ts` has a `webServer` entry that starts the frontend dev server automatically if one isn't already running, so this works standalone — verified by stopping the local dev server entirely and confirming Playwright starts its own and all tests still pass.
+Backend tests:
 
-**CI**: [`.github/workflows/e2e-tests.yml`](.github/workflows/e2e-tests.yml) runs the full suite on every push and pull request to `master`/`main`, and uploads the HTML test report as a build artifact so a failure can be inspected without re-running locally.
+```bash
+cd backend
+source .venv/bin/activate
+pytest
+```
 
----
+Current automated test coverage includes:
 
-# 📅 Development Progress
+- homepage render
+- browser geolocation planning flow
+- mocked end-to-end commute planning flow
+- commute API contract behavior
+- planner classification logic
+- target departure calculations
 
-## ✅ Completed
+GitHub Actions workflow:
 
-- [x] Project architecture (thin API layer → planner service → external service wrappers)
-- [x] Responsive, glassmorphic UI
-- [x] FastAPI backend with CORS for local dev
-- [x] Browser geolocation
-- [x] Reverse geocoding
-- [x] Driving route + live traffic (Google Routes API)
-- [x] Public transport routing with transfers (Google Routes API, TRANSIT mode)
-- [x] Current weather (Open-Meteo)
-- [x] Rule-based commute decision engine (mode choice, leave time, traffic/weather classification)
-- [x] AI-generated recommendation explanation (Claude, with OpenAI/DeepSeek as swappable providers)
-- [x] Weather- and time-of-day-reactive background scene
-- [x] Saved locations + returning-user auto-plan
-- [x] End-to-end tests (Playwright) + CI on every push/PR
+- `.github/workflows/e2e-tests.yml` runs Playwright tests on pushes and pull requests to `main` and `master`
 
----
+## Product Direction
 
-## 🔮 Future
+LeaveWise is meant to be a daily commute assistant, not a general travel planner or transport dashboard.
 
-- Live delay/service-alert overlay using the dormant Auckland Transport GTFS-Realtime integration
-- Natural-language input ("Need to be at AUT by 9am" → auto-filled destination/time)
-- Google Calendar integration
-- Push notifications
-- Multi-agent workflow / model routing (Claude vs. DeepSeek vs. OpenAI A/B comparison)
-- User preference learning
+The current implementation is focused on:
 
----
+- fast daily decision-making
+- concise recommendations
+- real API data where practical
+- portfolio-quality full-stack integration without over-engineering
 
-# 💡 Project Goal
+## Near-Term Next Steps
 
-LeaveWise uses a lightweight multi-agent workflow:
-
-- A Data Agent gathers and normalises live traffic, transit, and weather data.
-- A Decision Agent evaluates the structured data and selects the best commute option.
-- A Narration Agent explains the recommendation in clear, human-friendly language.
+- Improve transit delay accuracy using Auckland Transport realtime data
+- Tighten the planner heuristics for weather and traffic tradeoffs
+- Expand calendar-assisted planning
+- Replace remaining rough edges in the UI with richer real-data presentation
+- Add stronger error handling around upstream API failures

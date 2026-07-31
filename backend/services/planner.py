@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from agents.commute_agent import AgentRunResult, CommuteAgent
 from services.google_maps import GoogleMapsService
 from services.llm import LLMService
 from services.weather import WeatherService
@@ -16,6 +17,7 @@ class PlannerService:
         self.google_maps = GoogleMapsService()
         self.weather = WeatherService()
         self.llm = LLMService()
+        self.agent = CommuteAgent(google_maps=self.google_maps, weather=self.weather)
 
     def create_commute_plan(
         self,
@@ -27,17 +29,37 @@ class PlannerService:
         preference: str | None = None,
     ) -> dict:
         current_location = self.google_maps.reverse_geocode(latitude, longitude)
-        driving_route = None
         destination_location = self.google_maps.geocode_address(destination)
-        transit_route = None
 
-        if current_location:
+        # Agent-first: the tool-calling agent gathers data and decides the mode.
+        # Whatever it collected is reused below so nothing is fetched twice; the
+        # deterministic pipeline fills any gaps and takes over entirely when the
+        # agent is disabled or fails.
+        agent_result: AgentRunResult | None = None
+        if current_location and destination_location:
+            agent_result = self.agent.run(
+                origin_address=current_location,
+                origin_latitude=latitude,
+                origin_longitude=longitude,
+                destination=destination,
+                destination_latitude=destination_location["latitude"],
+                destination_longitude=destination_location["longitude"],
+                arrival_time=arrival_time,
+                preference=preference,
+            )
+
+        driving_route = agent_result.driving_route if agent_result else None
+        transit_route = agent_result.transit_route if agent_result else None
+        weather = agent_result.weather if agent_result else None
+        routing_basis = agent_result.routing_basis if agent_result else "live"
+
+        if driving_route is None and current_location:
             driving_route = self.google_maps.get_driving_route(
                 origin=current_location,
                 destination=destination,
             )
 
-        if destination_location:
+        if transit_route is None and destination_location:
             transit_route = self.google_maps.get_transit_route(
                 origin_latitude=latitude,
                 origin_longitude=longitude,
@@ -45,9 +67,7 @@ class PlannerService:
                 destination_longitude=destination_location["longitude"],
             )
 
-        routing_basis = "live"
-
-        if arrival_time:
+        if agent_result is None and arrival_time:
             baseline_drive_minutes = self._duration_to_minutes(
                 driving_route.get("duration") if driving_route else None
             )
@@ -80,9 +100,10 @@ class PlannerService:
                     transit_route = predicted_transit_route
                     routing_basis = "predicted"
 
-        weather = self.weather.get_current_weather(latitude, longitude)
-        weather_notice = None
+        if weather is None:
+            weather = self.weather.get_current_weather(latitude, longitude)
 
+        weather_notice = None
         if weather is None:
             weather_notice = "Weather data is temporarily unavailable."
 
@@ -94,6 +115,7 @@ class PlannerService:
             weather_notice=weather_notice,
             arrival_time=arrival_time,
             preference=preference,
+            agent_mode=agent_result.recommended_mode if agent_result else None,
         )
 
         narration = self.llm.narrate_recommendation(
@@ -118,6 +140,12 @@ class PlannerService:
             "recommendation": decision["summary"],
             "decision": decision,
             "routing_basis": routing_basis,
+            "agent": {
+                "used": agent_result is not None,
+                "turns": agent_result.turns if agent_result else 0,
+                "reasoning": agent_result.reasoning if agent_result else None,
+                "trace": agent_result.trace if agent_result else [],
+            },
         }
 
     def _build_decision(
@@ -130,6 +158,7 @@ class PlannerService:
         weather_notice: str | None,
         arrival_time: str | None,
         preference: str | None,
+        agent_mode: str | None = None,
     ) -> dict[str, Any]:
         drive_minutes = self._duration_to_minutes(
             driving_route.get("duration") if driving_route else None
@@ -152,16 +181,21 @@ class PlannerService:
             transit_route=transit_route,
             preference=preference,
         )
-        llm_mode = self.llm.decide_mode(
-            destination=destination,
-            driving_route=driving_route,
-            transit_route=transit_route,
-            weather=weather,
-            traffic=traffic,
-            weather_summary=weather_summary,
-            preference=preference,
-            target_arrival_time=arrival_time,
-        )
+        # When the agent already made the call, don't spend a second LLM request
+        # on the single-shot decision task.
+        if agent_mode is not None:
+            llm_mode = agent_mode
+        else:
+            llm_mode = self.llm.decide_mode(
+                destination=destination,
+                driving_route=driving_route,
+                transit_route=transit_route,
+                weather=weather,
+                traffic=traffic,
+                weather_summary=weather_summary,
+                preference=preference,
+                target_arrival_time=arrival_time,
+            )
 
         llm_mode_is_valid = llm_mode is not None and (
             llm_mode == "driving" or bool(transit_route and transit_route.get("available"))

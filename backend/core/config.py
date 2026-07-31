@@ -50,6 +50,13 @@ class Settings:
     DECISION_LLM_PROVIDER = (os.getenv("DECISION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
     NARRATION_LLM_PROVIDER = (os.getenv("NARRATION_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
 
+    # Tool-calling commute agent: when enabled, the agent loop gathers route and
+    # weather data itself and makes the mode decision; the deterministic planner
+    # pipeline remains the fallback. AGENT_MAX_TURNS caps LLM round-trips.
+    AGENT_ENABLED = _get_bool("AGENT_ENABLED", True)
+    AGENT_LLM_PROVIDER = (os.getenv("AGENT_LLM_PROVIDER") or LLM_PROVIDER).strip().lower()
+    AGENT_MAX_TURNS = int(os.getenv("AGENT_MAX_TURNS", "5"))
+
     GOOGLE_CALENDAR_CLIENT_ID = os.getenv("GOOGLE_CALENDAR_CLIENT_ID")
     GOOGLE_CALENDAR_CLIENT_SECRET = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET")
     GOOGLE_CALENDAR_REDIRECT_URI = os.getenv(

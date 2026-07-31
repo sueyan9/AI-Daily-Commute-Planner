@@ -4,7 +4,7 @@ LeaveWise is an AI-powered daily commute assistant built for one practical quest
 
 > Should I drive, take public transport, or leave earlier today?
 
-It combines browser geolocation, Google Maps routing, weather data, and LLM-backed narration to generate a short, decision-focused commute recommendation.
+It combines browser geolocation, Google Maps routing, weather data, and a tool-calling AI agent to generate a short, decision-focused commute recommendation. The agent autonomously gathers live route and weather data through tools and decides the commute mode; a deterministic rule-based pipeline provides the baseline guardrails and the fallback path.
 
 ## Current Status
 
@@ -19,8 +19,10 @@ What is working today:
 - Google Routes API driving estimates
 - Google Routes API transit comparison
 - Open-Meteo current weather integration
-- Rule-based commute decision logic
+- Tool-calling commute agent: a bounded agent loop that chooses which data tools to call (driving route, transit route, weather) and decides the commute mode via a schema-constrained submit tool
+- Rule-based commute decision logic as guardrail and fallback
 - LLM-backed recommendation explanation with provider routing
+- Agent transparency: the API returns the agent's tool-call trace and reasoning
 - Google Calendar OAuth connection for next-event arrival-time suggestions
 - Saved destinations and returning-user auto-plan behavior
 - Playwright end-to-end tests for the main frontend flow
@@ -38,14 +40,13 @@ Still in progress or not yet complete:
 On a normal run, LeaveWise:
 
 1. Reads the user's current browser location.
-2. Reverse-geocodes that location into a readable origin.
-3. Fetches driving route data from Google Routes.
-4. Fetches a transit option from Google Routes.
-5. Fetches current weather from Open-Meteo.
-6. Uses planner logic to decide which mode is better.
-7. Uses an LLM to explain that decision in one short sentence.
+2. Reverse-geocodes that location into a readable origin and geocodes the destination.
+3. Hands the request to the commute agent, which decides for itself which tools to call and in what order — for example: check the driving route, notice rain in the weather result, then also check transit for a target departure window.
+4. The agent finishes through a forced `submit_recommendation` tool call, so the mode decision is always schema-constrained rather than parsed from free text.
+5. The planner reuses whatever data the agent collected (nothing is fetched twice), fills any gaps directly from the services, and applies rule-based guardrails to the final decision.
+6. A separate narration task explains the decision in one short sentence.
 
-If the LLM is disabled or unavailable, the planner still returns a usable fallback recommendation based on the same structured data.
+The agent loop is bounded (`AGENT_MAX_TURNS`), and origin/destination are bound from the request context rather than exposed as tool parameters — the model chooses *what* and *when* to fetch, never *where to*. If the agent is disabled, times out, or fails, the deterministic planner pipeline runs the whole flow itself and still returns a usable recommendation.
 
 ## Architecture
 
@@ -56,26 +57,35 @@ Next.js Frontend
 FastAPI API Layer
         |
         v
-PlannerService
+PlannerService ──────────────────┐
+        |                        │ fallback / guardrails
+        v                        │ (rule-based pipeline)
+CommuteAgent (bounded tool loop) │
+        |                        │
+  tool calls chosen by the model │
+        v                        │
+  +---------------------------+  │
+  | get_driving_route         |  │
+  | get_transit_route         |──┘
+  | get_current_weather       |
+  | submit_recommendation     |
+  +---------------------------+
         |
-  +------------------------+
-  | Google Maps            |
-  | Open-Meteo             |
-  | LLM providers          |
-  | Google Calendar (opt.) |
-  +------------------------+
+  Google Maps / Open-Meteo
         |
         v
-Commute recommendation JSON
+Commute recommendation JSON (+ agent trace)
 ```
 
 Current backend flow:
 
 - `backend/api/commute.py` exposes `POST /commute/plan`
-- `backend/services/planner.py` composes route, weather, and decision logic
+- `backend/services/planner.py` orchestrates the agent, fills data gaps, and applies rule-based guardrails and fallback
+- `backend/agents/commute_agent.py` runs the bounded tool-calling agent loop (Anthropic and OpenAI-compatible providers)
+- `backend/tools/` defines the provider-neutral tool schemas and executors that wrap the services
 - `backend/services/google_maps.py` wraps Google geocoding and routing calls
 - `backend/services/weather.py` wraps weather retrieval
-- `backend/services/llm.py` handles decision and narration model calls
+- `backend/services/llm.py` handles the single-shot decision and narration model calls
 - `backend/api/calendar.py` and `backend/services/google_calendar.py` handle Google Calendar OAuth and next-event lookup
 
 ## Tech Stack
@@ -114,9 +124,10 @@ External APIs and services:
 
 ### Recommendation engine
 
-- Uses rule-based logic for the core decision
-- Can use separate LLM providers for decision and narration
-- Falls back safely if model calls fail
+- A bounded tool-calling agent gathers data and makes the mode decision
+- Rule-based guardrails keep the outcome sensible (e.g. never recommend transit when no route is available; prefer the faster option under normal conditions)
+- Agent, decision, and narration tasks can each run on a different LLM provider
+- Falls back safely to the deterministic pipeline if model calls fail
 
 ### Frontend experience
 
@@ -188,7 +199,17 @@ Typical response shape:
     "arrival_time": "8:25 AM",
     "travel_time_minutes": 21
   },
-  "routing_basis": "live"
+  "routing_basis": "live",
+  "agent": {
+    "used": true,
+    "turns": 3,
+    "reasoning": "Driving is 16 minutes faster and the weather is clear.",
+    "trace": [
+      { "tool": "get_driving_route", "input": {}, "status": "ok" },
+      { "tool": "get_current_weather", "input": {}, "status": "ok" },
+      { "tool": "get_transit_route", "input": { "departure_time": "07:45" }, "status": "ok" }
+    ]
+  }
 }
 ```
 
@@ -210,9 +231,11 @@ frontend/
   tests/
 
 backend/
+  agents/
   api/
   core/
   services/
+  tools/
   tests/
   main.py
 ```
@@ -226,6 +249,9 @@ Notable files:
 - `frontend/app/hooks/useGoogleCalendar.ts`
 - `backend/api/commute.py`
 - `backend/api/calendar.py`
+- `backend/agents/commute_agent.py`
+- `backend/tools/route_tool.py`
+- `backend/tools/weather_tool.py`
 - `backend/services/planner.py`
 - `backend/services/google_maps.py`
 - `backend/services/weather.py`
@@ -248,6 +274,9 @@ LLM_PROVIDER=openai
 DECISION_LLM_PROVIDER=openai
 NARRATION_LLM_PROVIDER=openai
 LLM_ENABLED=true
+AGENT_ENABLED=true
+AGENT_LLM_PROVIDER=anthropic
+AGENT_MAX_TURNS=5
 GOOGLE_CALENDAR_CLIENT_ID=your_google_calendar_client_id
 GOOGLE_CALENDAR_CLIENT_SECRET=your_google_calendar_client_secret
 ```
@@ -300,6 +329,8 @@ Current automated test coverage includes:
 - browser geolocation planning flow
 - mocked end-to-end commute planning flow
 - commute API contract behavior
+- agent loop behavior (tool dispatch, forced final submit, provider formats, failure fallback)
+- planner-agent integration (data reuse, guardrail overrides, deterministic fallback)
 - planner classification logic
 - target departure calculations
 
@@ -320,6 +351,7 @@ The current implementation is focused on:
 
 ## Near-Term Next Steps
 
+- Surface the agent's tool-call trace in the UI ("how the AI decided")
 - Improve transit delay accuracy using Auckland Transport realtime data
 - Tighten the planner heuristics for weather and traffic tradeoffs
 - Expand calendar-assisted planning

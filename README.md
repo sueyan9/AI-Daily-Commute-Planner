@@ -30,7 +30,7 @@ What is working today:
 
 Still in progress or not yet complete:
 
-- Stronger live transit delay enrichment from Auckland Transport realtime feeds
+- Live transit delay enrichment: an Auckland Transport GTFS / realtime client exists in `backend/services/auckland_transport.py` but is not yet wired into the planning flow
 - More polished calendar-driven commute automation
 - User preference learning beyond the current simple preference selector
 - Production deployment and full environment hardening
@@ -47,6 +47,25 @@ On a normal run, LeaveWise:
 6. A separate narration task explains the decision in one short sentence.
 
 The agent loop is bounded (`AGENT_MAX_TURNS`), and origin/destination are bound from the request context rather than exposed as tool parameters — the model chooses *what* and *when* to fetch, never *where to*. If the agent is disabled, times out, or fails, the deterministic planner pipeline runs the whole flow itself and still returns a usable recommendation.
+
+## Why No Agent Framework?
+
+The commute agent is a **hand-rolled tool-calling loop** — it does not use LangChain, LangGraph, the OpenAI Agents SDK, CrewAI, or even the official `openai` / `anthropic` Python SDKs. Every model call is a plain `requests.post` to the provider's HTTP API.
+
+This was a deliberate choice for this stage of the project:
+
+- **The problem is small and bounded.** One decision (drive vs. transit), three data tools, one submit tool, a hard turn cap. A single `for` loop expresses that more clearly than a graph or chain abstraction.
+- **Every mechanism is visible.** Tool schemas, the `tool_use` → `tool_result` message round-trip, the forced final `tool_choice`, the turn cap, and the fallback path all live in one file (`backend/agents/commute_agent.py`) and can be read top to bottom.
+- **Provider-agnostic by construction.** Tools are defined once in a neutral JSON Schema format (`backend/tools/`) and translated into both the Anthropic Messages format and the OpenAI-compatible format (used for OpenAI and DeepSeek). Switching provider is one environment variable.
+- **Safety properties are explicit, not implied by a library default:**
+  - origin and destination are bound from the request context, never exposed as tool parameters
+  - the loop is capped at `AGENT_MAX_TURNS`, and the last turn forces `submit_recommendation`
+  - the submitted mode is validated against an allowed set before it is used
+  - any transport error, timeout, or invalid output returns `None`, and the deterministic planner takes over
+- **Minimal dependencies.** The backend needs only FastAPI, Pydantic, Requests, and python-dotenv, so reviewers can run it locally with little setup.
+- **Easy to test.** Because the transport is a single `_post_json` method, tests can stub model responses directly and assert on tool dispatch, forced submit, provider formats, and fallback behaviour.
+
+When a framework would become worth it: multi-step or branching workflows, multiple cooperating agents, persistent memory, human-in-the-loop approval steps, or a need for built-in tracing dashboards. At that point LangGraph (or a provider agent SDK) is the natural next step, and the existing tool definitions can be reused.
 
 ## Architecture
 
@@ -101,7 +120,13 @@ Backend:
 
 - FastAPI
 - Python
-- Requests
+- Pydantic
+- Requests (direct HTTP calls to all external APIs, including LLM providers)
+
+AI / agent layer:
+
+- Hand-rolled tool-calling agent loop (no agent framework, no provider SDKs)
+- Supported providers: Anthropic, OpenAI, DeepSeek
 
 External APIs and services:
 
@@ -176,7 +201,7 @@ Typical response shape:
   },
   "transit_route": {
     "available": true,
-    "status": "NX1 is running on time.",
+    "status": "No transfers needed.",
     "route_label": "NX1",
     "departure_time": "8:05 AM",
     "arrival_time": "8:42 AM",
@@ -266,20 +291,41 @@ Create your local environment file from `backend/.env.example` and add the keys 
 Important environment variables:
 
 ```env
+# Required
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-OPENAI_API_KEY=your_openai_api_key
-DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# LLM providers (set at least one key to enable AI features)
 ANTHROPIC_API_KEY=your_anthropic_api_key
-LLM_PROVIDER=openai
-DECISION_LLM_PROVIDER=openai
-NARRATION_LLM_PROVIDER=openai
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_MODEL=deepseek-chat
+
+# Provider routing: anthropic | openai | deepseek
+LLM_PROVIDER=anthropic          # default for any task not overridden below
+DECISION_LLM_PROVIDER=          # blank = use LLM_PROVIDER
+NARRATION_LLM_PROVIDER=
+AGENT_LLM_PROVIDER=
 LLM_ENABLED=true
+LLM_TIMEOUT_SECONDS=20
+
+# Tool-calling agent
 AGENT_ENABLED=true
-AGENT_LLM_PROVIDER=anthropic
 AGENT_MAX_TURNS=5
+
+# Optional: Google Calendar
 GOOGLE_CALENDAR_CLIENT_ID=your_google_calendar_client_id
 GOOGLE_CALENDAR_CLIENT_SECRET=your_google_calendar_client_secret
+GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:8000/calendar/oauth/callback
 ```
+
+Notes:
+
+- In Google Cloud, enable the **Geocoding API** and **Routes API** for your key. The legacy Directions API is not used.
+- Open-Meteo needs no API key.
+- With `LLM_ENABLED=false` or no provider key, the app still works end to end using the deterministic planner and its rule-based explanation.
+- `backend/.env.example` also lists Gemini, Ollama, and OpenWeather variables as placeholders; those providers are not implemented yet.
 
 Install and run:
 
@@ -329,6 +375,7 @@ Current automated test coverage includes:
 - browser geolocation planning flow
 - mocked end-to-end commute planning flow
 - commute API contract behavior
+- Google Maps service wrapper (mocked HTTP)
 - agent loop behavior (tool dispatch, forced final submit, provider formats, failure fallback)
 - planner-agent integration (data reuse, guardrail overrides, deterministic fallback)
 - planner classification logic
@@ -337,6 +384,7 @@ Current automated test coverage includes:
 GitHub Actions workflow:
 
 - `.github/workflows/e2e-tests.yml` runs Playwright tests on pushes and pull requests to `main` and `master`
+- Backend `pytest` currently runs locally only; it is not yet part of CI
 
 ## Product Direction
 
@@ -349,6 +397,14 @@ The current implementation is focused on:
 - real API data where practical
 - portfolio-quality full-stack integration without over-engineering
 
+## Known Limitations
+
+- The frontend calls the backend at a hard-coded `http://localhost:8000`; there is no environment-based API URL yet.
+- Times are computed in the `Pacific/Auckland` timezone, so the app currently assumes an Auckland-based user.
+- Transit status comes from Google Routes (route, times, transfers). Realtime delays and service alerts are not yet included, and the agent is instructed not to invent them.
+- Google Calendar tokens are stored in a local file, so calendar support is single-user and local-only.
+- There is no authentication, rate limiting, or deployment configuration yet.
+
 ## Near-Term Next Steps
 
 - Surface the agent's tool-call trace in the UI ("how the AI decided")
@@ -357,3 +413,6 @@ The current implementation is focused on:
 - Expand calendar-assisted planning
 - Replace remaining rough edges in the UI with richer real-data presentation
 - Add stronger error handling around upstream API failures
+- Add backend `pytest` to the CI workflow
+- Move the backend URL into a `NEXT_PUBLIC_API_BASE_URL` environment variable
+- Optionally, build a LangGraph version of the agent as a side-by-side comparison with the hand-rolled loop
